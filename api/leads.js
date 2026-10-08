@@ -1,5 +1,6 @@
 import crypto from "node:crypto";
 import { requireUser, rateLimited, send, readBody, clip } from "./_claude.js";
+import { account, updateAppMeta, tracking, LEAD_PRICE } from "./_account.js";
 
 // Real leads from Google Maps via Apify's Google Maps Scraper.
 // POST {query, location} starts a run and returns a signed ticket;
@@ -59,13 +60,16 @@ export default async function handler(req, res) {
     const query = clip(b.query, 80), location = clip(b.location, 80);
     if (!query) return send(res, 400, { error: "no_query" });
     if (!location) return send(res, 400, { error: "no_location" });
+    const acct = account(user);
+    const affordable = tracking() ? Math.floor(acct.credits_left / LEAD_PRICE + 1e-9) : MAX_PLACES;
+    if (affordable < 1) return send(res, 402, { error: "no_credits" });
     try {
       const run = await apify(`/acts/${ACTOR}/runs`, {
         method: "POST",
         body: JSON.stringify({
           searchStringsArray: [query],
           locationQuery: location,
-          maxCrawledPlacesPerSearch: MAX_PLACES,
+          maxCrawledPlacesPerSearch: Math.min(MAX_PLACES, affordable),
           language: "en",
           website: "withWebsite",
           skipClosedPlaces: true,
@@ -90,7 +94,23 @@ export default async function handler(req, res) {
       ]);
       const status = (run.data && run.data.status) || "RUNNING";
       const leads = (Array.isArray(items) ? items : []).map(toLead).filter(l => l.name);
-      return send(res, 200, { status, leads });
+      let acct = account(user);
+      // Charge once per finished run, only for leads that came with an email.
+      const done = ["SUCCEEDED", "FAILED", "ABORTED", "TIMED-OUT"].includes(status);
+      const charged = (user.app_metadata && user.app_metadata.charged_runs) || [];
+      if (done && tracking() && !charged.includes(t.runId)) {
+        const billable = leads.filter(l => l.email).length;
+        const m = user.app_metadata || {};
+        try {
+          const updated = await updateAppMeta(user, {
+            credits_used: +(Number(m.credits_used || 0) + billable * LEAD_PRICE).toFixed(2),
+            leads_found: Number(m.leads_found || 0) + billable,
+            charged_runs: [...charged, t.runId].slice(-50),
+          });
+          if (updated) acct = account(updated);
+        } catch {}
+      }
+      return send(res, 200, { status, leads, account: acct });
     } catch {
       return send(res, 502, { error: "apify_error" });
     }

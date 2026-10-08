@@ -213,6 +213,30 @@ header.scrolled{border-color:var(--line)}
 .ltbl .btn{padding:7px 14px;font-size:.82rem;white-space:nowrap}
 .ltbl .none{color:var(--muted)}
 
+/* pages (profile, billing) */
+.page{padding:40px 0 80px}
+.page-wrap{max-width:760px}
+.page h2{font-size:clamp(2rem,4vw,2.6rem);margin:14px 0 22px}
+.page-sub{font-size:1.1rem;margin:40px 0 0}
+.page-card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:26px;display:grid;gap:18px}
+.back{background:none;border:0;color:var(--ink2);font:600 .92rem Inter,sans-serif;cursor:pointer;padding:6px 0}
+.back:hover{color:var(--accent)}
+.balance{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap}
+.balance .big{font-family:"Instrument Serif",Georgia,serif;font-size:3.2rem;line-height:1}
+.meter{height:8px;border-radius:8px;background:var(--grey-soft);overflow:hidden}
+.meter span{display:block;height:100%;background:var(--accent);border-radius:8px}
+.plans-page{margin-top:16px}
+body[data-page] .hero{display:none}
+.credit-chip{cursor:pointer;border:0;font-family:inherit}
+
+/* recipients */
+.recips{display:flex;flex-wrap:wrap;gap:6px;padding:8px;border:1px solid var(--line);background:var(--bg);border-radius:12px;max-height:140px;overflow:auto}
+.recip{display:inline-flex;align-items:center;gap:6px;background:var(--card);border:1px solid var(--line);border-radius:999px;padding:4px 6px 4px 10px;font-size:.82rem;max-width:100%}
+.recip span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.recip button{border:0;background:none;color:var(--muted);cursor:pointer;font-size:1rem;line-height:1;padding:0 4px}
+.recip.sent{background:var(--green-soft);border-color:transparent}
+.hint-small{font-size:.82rem;color:var(--muted)}
+
 /* past searches */
 .history{max-width:560px;margin:28px auto 0;text-align:left}
 .history-title{font-size:.72rem;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);font-weight:600;margin-bottom:10px}
@@ -328,7 +352,7 @@ footer{margin-top:auto;padding:28px 0 24px;color:var(--muted);font-size:.88rem}
       <a href="#faq">FAQ</a>
     </nav>
     <div class="nav-right">
-      <span class="credit-chip" id="creditChip" hidden>$50.00 credits</span>
+      <button class="credit-chip" type="button" id="creditChip" hidden>$50.00 credits</button>
       <button class="user-btn" type="button" id="profileBtn" hidden><span class="avatar" id="avatar"></span><span id="userName"></span></button>
       <button class="btn btn-ghost" type="button" id="signInBtn" hidden>Sign in</button>
       <a href="#start" class="btn btn-dark" id="getStarted">Get started</a>
@@ -397,17 +421,22 @@ footer{margin-top:auto;padding:28px 0 24px;color:var(--muted);font-size:.88rem}
       <div class="demo-bar"><span style="font-weight:600;color:var(--ink)" id="leadsTitle">Real leads</span><span class="mode" id="leadsCount"></span></div>
       <div class="leads-body">
         <p class="status" id="leadsStatus"></p>
-        <div class="leads-scroll"><table class="ltbl" id="leadsTable"><thead><tr><th>Business</th><th>Email</th><th>Phone</th><th></th></tr></thead><tbody></tbody></table></div>
+        <div class="leads-scroll"><table class="ltbl" id="leadsTable"><thead><tr><th>Business</th><th>Email</th><th>Phone</th></tr></thead><tbody></tbody></table></div>
       </div>
     </div>
 
     <div class="demo writer" id="writer" hidden>
       <div class="demo-bar"><span style="font-weight:600;color:var(--ink)">Your email</span></div>
       <div class="mailbox">
-        <div class="field"><label for="pEmail">To</label><input id="pEmail" type="email" value="maria@coastlineswim.com" placeholder="their@email.com" autocomplete="off"></div>
+        <div class="field"><label for="pEmail" id="toLabel">To</label>
+          <div class="recips" id="recips" hidden></div>
+          <input id="pEmail" type="email" value="maria@coastlineswim.com" placeholder="their@email.com" autocomplete="off">
+          <span class="hint-small" id="recipHint" hidden>Each lead gets their own email, starting with their business name.</span>
+        </div>
         <div class="field"><label for="eSubject">Subject</label><input id="eSubject" type="text"></div>
         <div class="field"><label for="eBody">Email</label><textarea id="eBody" class="body-edit"></textarea></div>
         <div class="actions">
+          <button class="btn btn-accent" type="button" id="sendBtn" hidden>Send</button>
           <button class="btn btn-accent" type="button" id="gmailBtn">Open in Gmail</button>
           <button class="btn btn-ghost" type="button" id="copyBtn">Copy</button>
         </div>
@@ -608,6 +637,54 @@ footer{margin-top:auto;padding:28px 0 24px;color:var(--muted);font-size:.88rem}
     </div>
   </div>
 </section>
+<section class="page" id="profilePage" hidden>
+  <div class="wrap page-wrap">
+    <button class="back" type="button" data-back>← Back</button>
+    <h2>Your profile</h2>
+    <div class="page-card">
+      <div class="field"><label for="profileName">First name</label>
+        <div class="inline"><input id="profileName" type="text" maxlength="80" autocomplete="given-name"><button class="btn btn-accent" type="button" id="saveName">Save</button></div>
+      </div>
+      <div class="profile-rows">
+        <div class="profile-row"><span>Email</span><span id="profileEmail"></span></div>
+        <div class="profile-row"><span>Plan</span><span id="profilePlan">Free trial</span></div>
+        <div class="profile-row"><span>Credits left</span><span><a href="#billing" id="profileCredits">$50.00</a></span></div>
+        <div class="profile-row"><span>Gmail for sending</span><span id="profileGmail">Not connected</span></div>
+      </div>
+      <div class="field"><label for="newPass">New password</label>
+        <div class="inline"><input id="newPass" type="password" minlength="6" autocomplete="new-password"><button class="btn btn-ghost" type="button" id="savePass">Change</button></div>
+      </div>
+      <p class="status" id="profileStatus"></p>
+      <button class="btn btn-ghost" type="button" id="signOutBtn">Sign out</button>
+    </div>
+  </div>
+</section>
+
+<section class="page" id="billingPage" hidden>
+  <div class="wrap page-wrap">
+    <button class="back" type="button" data-back>← Back</button>
+    <h2>Credits &amp; plans</h2>
+    <div class="page-card">
+      <div class="balance"><span class="big" id="billLeft">$50.00</span><span class="muted">left of your <span id="billStart">$50.00</span> free trial credit</span></div>
+      <div class="meter"><span id="billBar" style="width:100%"></span></div>
+      <div class="profile-rows">
+        <div class="profile-row"><span>Used so far</span><span id="billUsed">$0.00</span></div>
+        <div class="profile-row"><span>Leads with email found</span><span id="billLeads">0</span></div>
+        <div class="profile-row"><span>Emails sent</span><span id="billSent">0</span></div>
+        <div class="profile-row"><span>Price per lead with email</span><span id="billPrice">$0.10</span></div>
+      </div>
+      <p class="muted">Finding customer types and writing emails is free. You only pay for leads that come with an email, so $50 covers about 500 leads.</p>
+      <p class="status" id="billNote"></p>
+    </div>
+    <h3 class="page-sub">Plans</h3>
+    <div class="plans plans-page">
+      <div class="card plan"><h3>Starter</h3><div class="price">$50 <small>/ month</small></div><ul><li>500 leads with email a month</li><li>AI emails for every lead</li><li>Send from your Gmail</li></ul><button class="btn btn-ghost activate" type="button" data-plan="Starter">Activate</button></div>
+      <div class="card plan hot"><span class="badge">Most popular</span><h3>Growth</h3><div class="price">$88 <small>/ month</small></div><ul><li>1,000 leads with email a month</li><li>AI emails for every lead</li><li>Priority support</li></ul><button class="btn btn-accent activate" type="button" data-plan="Growth">Activate</button></div>
+      <div class="card plan"><h3>Pro</h3><div class="price">$150 <small>/ month</small></div><ul><li>2,000 leads with email a month</li><li>AI emails for every lead</li><li>Dedicated onboarding</li></ul><button class="btn btn-ghost activate" type="button" data-plan="Pro">Activate</button></div>
+    </div>
+    <p class="status" id="planNote" style="text-align:center;margin-top:16px"></p>
+  </div>
+</section>
 </main>
 
 <footer>
@@ -616,26 +693,6 @@ footer{margin-top:auto;padding:28px 0 24px;color:var(--muted);font-size:.88rem}
     <span>© <span id="yr"></span> Shakeapp Inc.</span>
   </div>
 </footer>
-
-<div class="modal" id="profileModal" hidden>
-  <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="profileTitle">
-    <button class="modal-x" type="button" id="profileClose" aria-label="Close">×</button>
-    <h3 id="profileTitle">Your profile</h3>
-    <div class="field"><label for="profileName">First name</label>
-      <div class="inline"><input id="profileName" type="text" maxlength="80" autocomplete="given-name"><button class="btn btn-accent" type="button" id="saveName">Save</button></div>
-    </div>
-    <div class="profile-rows">
-      <div class="profile-row"><span>Email</span><span id="profileEmail"></span></div>
-      <div class="profile-row"><span>Plan</span><span>Free beta</span></div>
-      <div class="profile-row"><span>Credits</span><span>$50.00</span></div>
-    </div>
-    <div class="field"><label for="newPass">New password</label>
-      <div class="inline"><input id="newPass" type="password" minlength="6" autocomplete="new-password"><button class="btn btn-ghost" type="button" id="savePass">Change</button></div>
-    </div>
-    <p class="status" id="profileStatus"></p>
-    <button class="btn btn-ghost" type="button" id="signOutBtn">Sign out</button>
-  </div>
-</div>
 
 <div class="modal" id="authModal" hidden>
   <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="authTitle">
@@ -676,15 +733,59 @@ function firstName(user){
   return local.charAt(0).toUpperCase() + local.slice(1).toLowerCase();
 }
 
-function openProfile(){
+function openProfile(){ location.hash = 'profile'; }
+function fillProfile(){
   const u = session.user;
-  document.getElementById('profileName').value = firstName(u);
+  if (document.activeElement !== document.getElementById('profileName')) document.getElementById('profileName').value = firstName(u);
   document.getElementById('profileEmail').textContent = u.email;
-  document.getElementById('newPass').value = '';
-  document.getElementById('profileStatus').textContent = '';
-  document.getElementById('profileModal').hidden = false;
+  document.getElementById('profileGmail').textContent = acct.gmail || 'Not connected';
+  document.getElementById('profilePlan').textContent = acct.plan === 'trial' ? 'Free trial' : acct.plan;
+  document.getElementById('profileCredits').textContent = money(acct.credits_left);
 }
-function closeProfile(){ document.getElementById('profileModal').hidden = true; }
+function closeProfile(){ if (location.hash === '#profile') location.hash = ''; }
+
+// ---- account (credits) ----
+let acct = { credits_left: 50, credits_used: 0, start_credits: 50, leads_found: 0, emails_sent: 0, lead_price: 0.1, plan: 'trial', gmail: '', tracked: false };
+function money(n){ return '$' + Number(n || 0).toFixed(2); }
+async function loadAccount(){
+  if (!session) return;
+  try {
+    const r = await fetch('/api/me', { headers: { Authorization: 'Bearer ' + session.access_token } });
+    if (r.ok) { acct = await r.json(); renderAccount(); }
+  } catch {}
+}
+function renderAccount(){
+  document.getElementById('creditChip').textContent = money(acct.credits_left) + ' credits';
+  document.getElementById('billLeft').textContent = money(acct.credits_left);
+  document.getElementById('billStart').textContent = money(acct.start_credits);
+  document.getElementById('billUsed').textContent = money(acct.credits_used);
+  document.getElementById('billLeads').textContent = acct.leads_found;
+  document.getElementById('billSent').textContent = acct.emails_sent;
+  document.getElementById('billPrice').textContent = money(acct.lead_price);
+  document.getElementById('billBar').style.width = Math.max(0, Math.min(100, 100 * acct.credits_left / acct.start_credits)) + '%';
+  document.getElementById('billNote').textContent = acct.tracked ? '' : 'Credits aren’t being counted yet, so everything is free while we test.';
+  if (session) fillProfile();
+  if (typeof renderRecipients === 'function' && typeof current !== 'undefined') renderRecipients();
+}
+
+// ---- pages: #profile and #billing replace the main view, with a back button ----
+function route(){
+  const h = location.hash.replace('#', '');
+  const page = document.body.classList.contains('app') && (h === 'profile' || h === 'billing') ? h : '';
+  if (page) document.body.dataset.page = page; else delete document.body.dataset.page;
+  document.getElementById('profilePage').hidden = page !== 'profile';
+  document.getElementById('billingPage').hidden = page !== 'billing';
+  if (page === 'profile') fillProfile();
+  if (page) { window.scrollTo(0, 0); loadAccount(); }
+}
+addEventListener('hashchange', route);
+document.querySelectorAll('[data-back]').forEach(b => b.addEventListener('click', () => { location.hash = ''; }));
+document.getElementById('creditChip').addEventListener('click', () => { location.hash = 'billing'; });
+document.querySelectorAll('.activate').forEach(b => b.addEventListener('click', () => {
+  const n = document.getElementById('planNote');
+  n.className = 'status ok';
+  n.textContent = 'Paid plans open soon. For now everything is free while we test. Want ' + b.dataset.plan + ' early? Write to contact@shakeapp.today.';
+}));
 
 // An "active" search stays open for the rest of this login (sessionStorage);
 // past searches are kept per user in this browser.
@@ -739,6 +840,8 @@ function renderAuth(){
     if (showResults) renderAnalysis(); else document.getElementById('writer').hidden = true;
   }
   renderHistory();
+  route();
+  if (inn && !acct.loadedFor) { acct.loadedFor = session.user.id; loadAccount(); }
   if (inn) {
     const n = firstName(session.user);
     document.getElementById('appHello').textContent = 'Hi ' + n + ' 👋';
@@ -798,12 +901,10 @@ document.getElementById('tabUp').addEventListener('click', () => setAuthMode('up
 document.getElementById('tabIn').addEventListener('click', () => setAuthMode('in'));
 document.getElementById('authClose').addEventListener('click', closeAuth);
 document.getElementById('authModal').addEventListener('click', e => { if (e.target.id === 'authModal') closeAuth(); });
-addEventListener('keydown', e => { if (e.key === 'Escape') { closeAuth(); closeProfile(); } });
+addEventListener('keydown', e => { if (e.key === 'Escape') closeAuth(); });
 for (const id of ['signInBtn', 'mSignIn']) document.getElementById(id).addEventListener('click', e => { e.preventDefault(); openAuth('in'); });
-document.getElementById('signOutBtn').addEventListener('click', async () => { setActive(false); if (sb) await sb.auth.signOut(); closeProfile(); });
+document.getElementById('signOutBtn').addEventListener('click', async () => { setActive(false); if (sb) await sb.auth.signOut(); location.hash = ''; });
 for (const id of ['profileBtn', 'mProfile']) document.getElementById(id).addEventListener('click', e => { e.preventDefault(); if (session) openProfile(); });
-document.getElementById('profileClose').addEventListener('click', closeProfile);
-document.getElementById('profileModal').addEventListener('click', e => { if (e.target.id === 'profileModal') closeProfile(); });
 document.getElementById('saveName').addEventListener('click', async () => {
   const st = document.getElementById('profileStatus');
   const name = document.getElementById('profileName').value.trim();
@@ -960,6 +1061,7 @@ function renderAnalysis(){
     $('pEmail').value = '';
   }
   $('writer').hidden = $('demo').hidden || (!current.example && !sg.body);
+  renderRecipients();
   $('refine').hidden = $('demo').hidden || current.example;
   if (current.offer) { $('offer').hidden = false; $('refineBtn').hidden = true; }
   const d = $('segDetail'); d.replaceChildren();
@@ -991,6 +1093,7 @@ function renderAnalysis(){
 let leadRun = null;
 function leadsError(code){
   switch (code) {
+    case 'no_credits': return 'You’re out of credits. See Credits & plans to keep going.';
     case 'missing_apify': return 'Lead search isn’t switched on yet: the site owner needs to add the Apify token in Vercel.';
     case 'apify_credits': return 'The lead finder is out of credits. Try again later.';
     case 'rate_limited': return 'Too many lead searches. Wait a few minutes and try again.';
@@ -1026,6 +1129,7 @@ async function findLeads(){
       await new Promise(r => setTimeout(r, 6000));
       const res = await leadsApi('GET', ticket);
       sg.leads = res.leads;
+      if (res.account) { acct = res.account; renderAccount(); }
       if (selected === segIndex) renderLeads();
       if (['SUCCEEDED', 'FAILED', 'ABORTED', 'TIMED-OUT'].includes(res.status) || Date.now() - started > 6 * 60000) break;
     }
@@ -1045,13 +1149,14 @@ function renderLeads(){
   box.hidden = $('demo').hidden || !(has || running || sg.leadsError);
   if (running) { st.className = 'status'; st.textContent = leadRun.msg; }
   else if (sg.leadsError) { st.className = 'status err'; st.textContent = sg.leadsError; }
-  else if (has && sg.leads.length) { st.className = 'status ok'; st.textContent = 'Click “Email them” to write to a lead.'; }
+  else if (has && sg.leads.length) { st.className = 'status ok'; st.textContent = 'Every lead with an email is added to your email below.'; }
   else if (has) { st.className = 'status err'; st.textContent = 'No leads found there. Try a bigger city or a whole country.'; }
   else st.textContent = '';
   $('leadsTitle').textContent = 'Real leads · ' + sg.name + (sg.leadsLoc ? ' in ' + sg.leadsLoc : '');
   const list = has ? sg.leads : [];
   const withEmail = list.filter(l => l.email).length;
   $('leadsCount').textContent = list.length ? list.length + ' found · ' + withEmail + ' with email' : '';
+  renderRecipients();
   tb.replaceChildren();
   list.forEach(l => {
     const tr = document.createElement('tr');
@@ -1061,21 +1166,81 @@ function renderLeads(){
     if (l.address) { const sm = document.createElement('small'); sm.textContent = l.address; a.append(sm); }
     const e = document.createElement('td'); e.textContent = l.email || '—'; if (!l.email) e.className = 'none';
     const p = document.createElement('td'); p.textContent = l.phone || '—'; if (!l.phone) p.className = 'none';
-    const act = document.createElement('td');
-    if (l.email) {
-      const b = document.createElement('button'); b.type = 'button'; b.className = 'btn btn-ghost'; b.textContent = 'Email them';
-      b.addEventListener('click', () => {
-        $('pEmail').value = l.email;
-        const body = (sg.body || $('eBody').value).replace('[First name]', l.name + ' team');
-        showEmail({ subject: sg.subject || $('eSubject').value, body });
-        $('writer').hidden = false;
-        $('writer').scrollIntoView({ behavior: 'smooth', block: 'start' });
-      });
-      act.append(b);
-    }
-    tr.append(a, e, p, act); tb.append(tr);
+    tr.append(a, e, p); tb.append(tr);
   });
 }
+
+// ---- recipients: every lead with an email, removable; Send emails them all ----
+function recipients(){
+  const sg = current.segments[selected];
+  if (!sg || !Array.isArray(sg.leads)) return [];
+  const out = new Set(sg.removed || []);
+  return sg.leads.filter(l => l.email && !out.has(l.email)).map(l => ({ email: l.email, name: l.name }));
+}
+function renderRecipients(){
+  const sg = current.segments[selected];
+  const list = recipients(), box = $('recips');
+  const using = !!(sg && Array.isArray(sg.leads) && sg.leads.some(l => l.email));
+  box.hidden = !using; $('recipHint').hidden = !using; $('pEmail').hidden = using;
+  $('sendBtn').hidden = !using; $('gmailBtn').hidden = using;
+  if (!using) return;
+  const sent = new Set(sg.sent || []);
+  $('toLabel').textContent = 'To · ' + list.length + (list.length === 1 ? ' lead' : ' leads');
+  box.replaceChildren();
+  list.forEach(r => {
+    const c = document.createElement('span'); c.className = 'recip' + (sent.has(r.email) ? ' sent' : '');
+    const t = document.createElement('span'); t.textContent = (sent.has(r.email) ? '✓ ' : '') + r.email; t.title = r.name;
+    const x = document.createElement('button'); x.type = 'button'; x.textContent = '×'; x.setAttribute('aria-label', 'Remove ' + r.email);
+    x.addEventListener('click', () => { sg.removed = [...(sg.removed || []), r.email]; renderRecipients(); });
+    c.append(t, x); box.append(c);
+  });
+  const left = list.filter(r => !sent.has(r.email)).length;
+  $('sendBtn').textContent = !acct.gmail ? 'Connect Gmail to send' : left ? 'Send to ' + left + (left === 1 ? ' lead' : ' leads') : 'All sent ✓';
+  $('sendBtn').disabled = !!acct.gmail && !left;
+}
+function sendError(code){
+  switch (code) {
+    case 'gmail_not_configured': return 'Sending isn’t switched on yet: the site owner needs to finish the Gmail setup.';
+    case 'gmail_not_connected': return 'Connect your Gmail first.';
+    case 'daily_cap': return 'You’ve reached today’s limit of 50 emails. This protects your inbox from spam filters. Try again tomorrow.';
+    case 'auth_required': return 'Sign in to send emails.';
+    default: return 'Couldn’t send right now. Try again in a minute.';
+  }
+}
+async function sendAll(){
+  const st = $('sendStatus');
+  if (!session) { openAuth('up', 'Create a free account to send emails.'); return; }
+  const headers = { 'Content-Type': 'application/json', Authorization: 'Bearer ' + session.access_token };
+  if (!acct.gmail) {
+    st.className = 'status'; st.textContent = 'Opening Google…';
+    try {
+      const r = await fetch('/api/gmail-start', { headers }); const d = await r.json().catch(() => ({}));
+      if (!r.ok) throw { code: d.error };
+      store.set('analysis', current); saveToHistory(current); setActive(true);
+      location.href = d.url;
+    } catch (e) { st.className = 'status err'; st.textContent = sendError(e && e.code); }
+    return;
+  }
+  const sg = current.segments[selected];
+  const sent = new Set(sg.sent || []);
+  const list = recipients().filter(r => !sent.has(r.email));
+  if (!list.length) return;
+  const btn = $('sendBtn'); btn.disabled = true; btn.textContent = 'Sending 💸';
+  st.className = 'status'; st.textContent = 'Sending ' + list.length + ' emails from ' + acct.gmail + '…';
+  try {
+    const r = await fetch('/api/send', { method: 'POST', headers, body: JSON.stringify({ recipients: list, subject: $('eSubject').value, body: $('eBody').value }) });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) throw { code: d.error };
+    sg.sent = [...sent, ...d.sent];
+    store.set('analysis', current); saveToHistory(current);
+    st.className = d.failed.length ? 'status err' : 'status ok';
+    st.textContent = 'Sent ' + d.sent.length + ' email' + (d.sent.length === 1 ? '' : 's') + ' from ' + acct.gmail + '.'
+      + (d.failed.length ? ' ' + d.failed.length + ' failed.' : '') + (d.skipped ? ' ' + d.skipped + ' wait for tomorrow (50 a day).' : '');
+    loadAccount();
+  } catch (e) { st.className = 'status err'; st.textContent = sendError(e && e.code); }
+  finally { btn.disabled = false; renderRecipients(); }
+}
+$('sendBtn').addEventListener('click', sendAll);
 
 const STEPS = [...document.querySelectorAll('#demo .step')];
 function setSteps(n, active){ STEPS.forEach((el, i) => el.className = 'step' + (i < n ? ' done' : (i === n && active ? ' active' : ''))); }
@@ -1257,6 +1422,13 @@ $('tryForm2').addEventListener('submit', e => {
 
 if (current.site && !current.example) $('site').value = current.site;
 if (current.offer) $('offer').value = current.offer;
+(() => {
+  const q = new URLSearchParams(location.search), g = q.get('gmail');
+  if (!g) return;
+  history.replaceState(null, '', location.pathname + location.hash);
+  const msg = { connected: 'Gmail connected. Press Send to email your leads.', cancelled: 'Gmail wasn’t connected.', expired: 'That took too long. Try connecting Gmail again.', error: 'Couldn’t connect Gmail. Try again.' }[g];
+  if (msg) { $('sendStatus').className = g === 'connected' ? 'status ok' : 'status err'; $('sendStatus').textContent = msg; }
+})();
 $('refineBtn').addEventListener('click', () => { $('refineBtn').hidden = true; $('offer').hidden = false; $('offer').focus(); });
 $('offer').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); analyze(); } });
 showEmail({
