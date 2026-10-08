@@ -645,7 +645,7 @@ footer{margin-top:auto;padding:28px 0 24px;color:var(--muted);font-size:.88rem}
         <button class="btn btn-ghost plan-btn" type="button">Start free</button>
       </div>
     </div>
-    <p class="beta-note">Free while we’re in beta. No card needed.</p>
+    <p class="beta-note">Every new account starts with $50 in free credit. No card needed to try it.</p>
   </div>
 </section>
 
@@ -708,7 +708,7 @@ footer{margin-top:auto;padding:28px 0 24px;color:var(--muted);font-size:.88rem}
     <button class="back" type="button" data-back>← Back</button>
     <h2>Credits &amp; plans</h2>
     <div class="page-card">
-      <div class="balance"><span class="big" id="billLeft">$50.00</span><span class="muted">left of your <span id="billStart">$50.00</span> free trial credit</span></div>
+      <div class="balance"><span class="big" id="billLeft">$50.00</span><span class="muted">left of your <span id="billStart">$50.00</span> <span id="billKind">free trial credit</span></span></div>
       <div class="meter"><span id="billBar" style="width:100%"></span></div>
       <div class="profile-rows">
         <div class="profile-row"><span>Used so far</span><span id="billUsed">$0.00</span></div>
@@ -718,6 +718,7 @@ footer{margin-top:auto;padding:28px 0 24px;color:var(--muted);font-size:.88rem}
       </div>
       <p class="muted">Finding customer types and writing emails is free. You only pay for leads that come with an email, so $50 covers about 500 leads.</p>
       <p class="status" id="billNote"></p>
+      <button class="btn btn-ghost" type="button" id="manageBilling" hidden>Manage billing</button>
     </div>
     <h3 class="page-sub">Plans</h3>
     <div class="plans plans-page">
@@ -806,7 +807,15 @@ function renderAccount(){
   document.getElementById('billSent').textContent = acct.emails_sent;
   document.getElementById('billPrice').textContent = money(acct.lead_price);
   document.getElementById('billBar').style.width = Math.max(0, Math.min(100, 100 * acct.credits_left / acct.start_credits)) + '%';
-  document.getElementById('billNote').textContent = acct.tracked ? '' : 'Credits aren’t being counted yet, so everything is free while we test.';
+  const plan = String(acct.plan || 'trial').toLowerCase();
+  document.getElementById('billKind').textContent = acct.paid ? 'monthly ' + plan.charAt(0).toUpperCase() + plan.slice(1) + ' credit' : 'free trial credit';
+  document.getElementById('billNote').textContent = '';
+  document.getElementById('manageBilling').hidden = !acct.billing;
+  document.querySelectorAll('.activate').forEach(b => {
+    const on = acct.paid && b.dataset.plan.toLowerCase() === plan;
+    b.textContent = on ? 'Your plan ✓' : acct.paid ? 'Switch to ' + b.dataset.plan : 'Activate';
+    b.disabled = on;
+  });
   if (session) fillProfile();
   if (typeof renderRecipients === 'function' && typeof current !== 'undefined') renderRecipients();
 }
@@ -824,11 +833,28 @@ function route(){
 addEventListener('hashchange', route);
 document.querySelectorAll('[data-back]').forEach(b => b.addEventListener('click', () => { location.hash = ''; }));
 document.getElementById('creditChip').addEventListener('click', () => { location.hash = 'billing'; });
-document.querySelectorAll('.activate').forEach(b => b.addEventListener('click', () => {
+// Paid plans go through Stripe Checkout; switching or cancelling goes through the Stripe portal.
+async function billingLink(path, body, btn){
   const n = document.getElementById('planNote');
-  n.className = 'status ok';
-  n.textContent = 'Paid plans open soon. For now everything is free while we test. Want ' + b.dataset.plan + ' early? Write to contact@shakeapp.today.';
+  const label = btn.textContent;
+  btn.disabled = true; btn.textContent = 'Opening…'; n.textContent = '';
+  try {
+    const r = await fetch('/api/' + path, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + session.access_token }, body: JSON.stringify(body) });
+    const d = await r.json().catch(() => ({}));
+    if (d.url) { location.href = d.url; return; }
+    throw d.error;
+  } catch (e) {
+    n.className = 'status err';
+    n.textContent = e === 'payments_off' ? 'Payments are being switched on. Try again in a few minutes or write to contact@shakeapp.today.' : 'Couldn’t open checkout. Try again.';
+    btn.disabled = false; btn.textContent = label;
+  }
+}
+document.querySelectorAll('.activate').forEach(b => b.addEventListener('click', () => {
+  if (!session) { openAuth('up'); return; }
+  if (acct.billing) billingLink('portal', {}, b);
+  else billingLink('checkout', { plan: b.dataset.plan.toLowerCase() }, b);
 }));
+document.getElementById('manageBilling').addEventListener('click', e => billingLink('portal', {}, e.currentTarget));
 
 // An "active" search stays open for the rest of this login (sessionStorage);
 // past searches are kept per user in this browser.
@@ -1585,7 +1611,14 @@ $('tryForm2').addEventListener('submit', e => {
 if (current.site && !current.example) $('site').value = current.site;
 if (current.offer) $('offer').value = current.offer;
 (() => {
-  const q = new URLSearchParams(location.search), g = q.get('gmail');
+  const q = new URLSearchParams(location.search), g = q.get('gmail'), paid = q.get('paid');
+  if (paid) {
+    history.replaceState(null, '', location.pathname + location.hash);
+    const n = document.getElementById('planNote');
+    n.className = paid === 'cancelled' ? 'status err' : 'status ok';
+    n.textContent = paid === 'cancelled' ? 'Checkout was cancelled. Nothing was charged.' : 'Payment received. Your ' + paid.charAt(0).toUpperCase() + paid.slice(1) + ' plan is on. 🎉';
+    setTimeout(loadAccount, 2500); setTimeout(loadAccount, 7000);
+  }
   if (!g) return;
   history.replaceState(null, '', location.pathname + location.hash);
   const msg = { connected: 'Gmail connected. Press Send to email your leads.', cancelled: 'Gmail wasn’t connected.', expired: 'That took too long. Try connecting Gmail again.', error: 'Couldn’t connect Gmail. Try again.' }[g];
