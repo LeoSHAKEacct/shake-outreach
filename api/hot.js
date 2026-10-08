@@ -1,3 +1,4 @@
+import { scoreHot } from "./_hot_score.js";
 import { requireUser, askJSON, rateLimited, send, readBody, clip } from "./_claude.js";
 import { hotDaysLeft } from "./_account.js";
 import { apify, startRun, makeTicket, readTicket } from "./_apify.js";
@@ -29,6 +30,7 @@ function fromX(t) {
 }
 
 export default async function handler(req, res) {
+  if (req.query && req.query.score) return scoreHot(req, res);
   if (!process.env.APIFY_TOKEN) return send(res, 503, { error: "missing_apify" });
   const user = await requireUser(req);
   if (!user || !user.id) return send(res, 401, { error: "auth_required" });

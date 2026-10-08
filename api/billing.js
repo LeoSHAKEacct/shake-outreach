@@ -3,7 +3,7 @@ import { PLANS } from "./_account.js";
 import { stripe, origin } from "./_stripe.js";
 
 // POST {plan} → a Stripe Checkout link for that monthly plan.
-export default async function handler(req, res) {
+async function checkout(req, res) {
   if (req.method !== "POST") return send(res, 405, { error: "method_not_allowed" });
   const user = await requireUser(req);
   if (!user || !user.id) return send(res, 401, { error: "auth_required" });
@@ -32,4 +32,24 @@ export default async function handler(req, res) {
   } catch (e) {
     return send(res, 502, { error: e.code || "stripe_error" });
   }
+}
+
+// POST → a Stripe customer portal link to change card, switch plan or cancel.
+async function portal(req, res) {
+  if (req.method !== "POST") return send(res, 405, { error: "method_not_allowed" });
+  const user = await requireUser(req);
+  if (!user || !user.id) return send(res, 401, { error: "auth_required" });
+  const customer = (user.app_metadata || {}).stripe_customer;
+  if (!customer) return send(res, 400, { error: "no_billing" });
+  try {
+    const s = await stripe("billing_portal/sessions", { customer, return_url: origin(req) + "/#billing" });
+    return send(res, 200, { url: s.url });
+  } catch (e) {
+    return send(res, 502, { error: e.code || "stripe_error" });
+  }
+}
+
+// /api/checkout and /api/portal are rewritten here (vercel.json) to stay under the function limit.
+export default function handler(req, res) {
+  return req.query && req.query.do === "portal" ? portal(req, res) : checkout(req, res);
 }

@@ -14,7 +14,7 @@ const SCHEMA = {
   },
 };
 
-export default async function handler(req, res) {
+export async function scoreHot(req, res) {
   if (req.method !== "POST") return send(res, 405, { error: "method" });
   const user = await requireUser(req);
   if (!user || !user.id) return send(res, 401, { error: "auth_required" });

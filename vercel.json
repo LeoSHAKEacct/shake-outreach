@@ -1,5 +1,11 @@
 {
   "functions": {
     "api/*.js": { "maxDuration": 60 }
-  }
+  },
+  "rewrites": [
+    { "source": "/api/checkout", "destination": "/api/billing?do=checkout" },
+    { "source": "/api/portal", "destination": "/api/billing?do=portal" },
+    { "source": "/api/hot-score", "destination": "/api/hot?score=1" },
+    { "source": "/api/health", "destination": "/api/config?health=1" }
+  ]
 }
