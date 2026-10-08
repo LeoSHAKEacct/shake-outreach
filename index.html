@@ -253,6 +253,8 @@ footer{margin-top:auto;padding:28px 0 24px;color:var(--muted);font-size:.88rem}
 .foot a:hover{color:var(--ink)}
 
 /* live tool */
+.refine{margin-top:12px;display:grid;justify-items:center;gap:8px}
+.refine .linkish{justify-self:center}
 .offer{display:block;width:100%;max-width:560px;margin:10px auto 0;border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:16px;padding:12px 18px;font:500 .95rem Inter,sans-serif;outline:0}
 .offer::placeholder{color:var(--placeholder)}
 .try:focus-within,.offer:focus,.field input:focus,.field textarea:focus{border-color:var(--accent)}
@@ -359,8 +361,11 @@ footer{margin-top:auto;padding:28px 0 24px;color:var(--muted);font-size:.88rem}
       <input id="site" type="text" placeholder="Enter your website, e.g. yourbrand.com" aria-label="Your website" autocomplete="off">
       <button class="btn btn-accent" type="submit" id="runBtn">Find my customers →</button>
     </form>
-    <input id="offer" class="offer" type="text" placeholder="What do you sell? (optional, makes results sharper)" aria-label="What you sell" autocomplete="off">
     <p class="hint" id="runStatus">Takes about 20 seconds.</p>
+    <div class="refine" id="refine" hidden>
+      <button class="linkish" type="button" id="refineBtn">✏️ Refine my search</button>
+      <input id="offer" class="offer" type="text" placeholder="Tell us more about what you sell, then press Enter" aria-label="What you sell" autocomplete="off" hidden>
+    </div>
     <div class="history app-only" id="history" hidden>
       <div class="history-title">Your past searches</div>
       <div class="history-list" id="historyList"></div>
@@ -955,6 +960,8 @@ function renderAnalysis(){
     $('pEmail').value = '';
   }
   $('writer').hidden = $('demo').hidden || (!current.example && !sg.body);
+  $('refine').hidden = $('demo').hidden || current.example;
+  if (current.offer) { $('offer').hidden = false; $('refineBtn').hidden = true; }
   const d = $('segDetail'); d.replaceChildren();
   const dl = document.createElement('dl');
   [['Email', sg.buyer], ['Why', sg.why], ['Find them', sg.where], ['Lead with', sg.angle]].forEach(([k, v]) => {
@@ -1250,6 +1257,8 @@ $('tryForm2').addEventListener('submit', e => {
 
 if (current.site && !current.example) $('site').value = current.site;
 if (current.offer) $('offer').value = current.offer;
+$('refineBtn').addEventListener('click', () => { $('refineBtn').hidden = true; $('offer').hidden = false; $('offer').focus(); });
+$('offer').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); analyze(); } });
 showEmail({
   subject: 'Your new resort line',
   body: 'Hi Maria,\n\nSaw you opened a second store in Tulum, and that your recycled-nylon pieces sold out last season. Congrats.\n\nWe make private-label swimwear in small runs (from 50 pieces), so you can test new cuts without sitting on stock.\n\nWorth a 15-minute call next week?\n\nLeo',
