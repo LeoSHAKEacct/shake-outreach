@@ -1102,7 +1102,7 @@ function renderAnalysis(){
   $('writer').hidden = $('demo').hidden || (!current.example && !sg.body);
   renderRecipients();
   $('refine').hidden = $('demo').hidden || current.example;
-  if (current.offer) { $('offer').hidden = false; $('refineBtn').hidden = true; }
+  if (document.activeElement !== $('offer')) collapseRefine();
   const d = $('segDetail'); d.replaceChildren();
   const dl = document.createElement('dl');
   [['Email', sg.buyer], ['Why', sg.why], ['Find them', sg.where], ['Lead with', sg.angle]].forEach(([k, v]) => {
@@ -1577,7 +1577,13 @@ if (current.offer) $('offer').value = current.offer;
   const msg = { connected: 'Gmail connected. Press Send to email your leads.', cancelled: 'Gmail wasn’t connected.', expired: 'That took too long. Try connecting Gmail again.', error: 'Couldn’t connect Gmail. Try again.' }[g];
   if (msg) { $('sendStatus').className = g === 'connected' ? 'status ok' : 'status err'; $('sendStatus').textContent = msg; }
 })();
+function collapseRefine(){
+  const v = $('offer').value.trim();
+  $('offer').hidden = true; $('refineBtn').hidden = false;
+  $('refineBtn').textContent = v ? '✏️ Refined: ' + (v.length > 40 ? v.slice(0, 40) + '…' : v) : '✏️ Refine my search';
+}
 $('refineBtn').addEventListener('click', () => { $('refineBtn').hidden = true; $('offer').hidden = false; $('offer').focus(); });
+$('offer').addEventListener('blur', () => setTimeout(collapseRefine, 150));
 $('offer').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); analyze(); } });
 showEmail({
   subject: 'Your new resort line',
