@@ -626,7 +626,7 @@ footer{margin-top:auto;padding:28px 0 24px;color:var(--muted);font-size:.88rem}
     <div class="center">
       <span class="eyebrow">New · 1 week free</span>
       <h2>🔥 Hot leads, <em>in real time.</em></h2>
-      <p class="lead">Right now, someone is posting “can anyone recommend a…” for exactly what you sell. We scan Reddit and X around the clock, pick out the people who are ready to buy, and write you a helpful reply for each one.</p>
+      <p class="lead">Right now, someone is posting “can anyone recommend a…” for exactly what you sell. Our agent scans the internet in real time, pick out the people who are ready to buy, and write you a helpful reply for each one.</p>
     </div>
     <div class="steps">
       <div class="card"><div class="num">01</div><h3>We listen</h3><p>Fresh public posts where people ask for recommendations or complain about their current provider.</p></div>
@@ -1265,7 +1265,7 @@ function renderAnalysis(){
     const tip = document.createElement('span'); tip.className = 'tip'; tip.setAttribute('role', 'tooltip'); tip.id = 'hotTip';
     const setTip = () => {
       const city = loc.value.trim();
-      tip.textContent = 'Find people asking for this right now' + (city ? ' in ' + city : '') + '. This takes 1–3 minutes.';
+      tip.textContent = 'Our agent scans the internet in real time for people looking for this right now' + (city ? ' in ' + city : '') + '. Takes 1–3 minutes.';
     };
     setTip();
     loc.addEventListener('input', setTip);
@@ -1394,7 +1394,7 @@ async function findHot(){
   const loc = ($('leadLoc') && $('leadLoc').value.trim()) || '';
   if (loc) store.set('loc', loc);
   sg.hot = { posts: [], matches: [], loc, error: '' };
-  hotRun = { segIndex, msg: 'Finding 🔥 people asking for this right now' + (loc ? ' in ' + loc : '') + '. This takes 1–3 minutes.' };
+  hotRun = { segIndex, msg: 'Our agent is scanning the internet in real time for people looking for this right now' + (loc ? ' in ' + loc : '') + '. Takes 1–3 minutes.' };
   renderAnalysis();
   $('hotBox').scrollIntoView({ behavior: 'smooth', block: 'start' });
   try {
