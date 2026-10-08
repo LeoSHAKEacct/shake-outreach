@@ -1,6 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import dns from "node:dns/promises";
 import net from "node:net";
+import { SUPABASE_URL, SUPABASE_ANON_KEY } from "./config.js";
 
 const MODEL = "claude-opus-5-5";
 const client = new Anthropic();
@@ -19,7 +20,7 @@ export function rateLimited(req, user, limit = 20, windowMs = 10 * 60 * 1000) {
 // When Supabase is configured, every AI call needs a signed-in user.
 // Returns the user, {} when accounts are off, or null when the caller isn't signed in.
 export async function requireUser(req) {
-  const url = process.env.SUPABASE_URL, anon = process.env.SUPABASE_ANON_KEY;
+  const url = SUPABASE_URL, anon = SUPABASE_ANON_KEY;
   if (!url || !anon) return {};
   const token = String(req.headers.authorization || "").replace(/^Bearer\s+/i, "");
   if (!token) return null;
