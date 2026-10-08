@@ -716,7 +716,7 @@ footer{margin-top:auto;padding:28px 0 24px;color:var(--muted);font-size:.88rem}
         <div class="profile-row"><span>Emails sent</span><span id="billSent">0</span></div>
         <div class="profile-row"><span>Price per lead with email</span><span id="billPrice">$0.10</span></div>
       </div>
-      <p class="muted">Finding customer types and writing emails is free. You only pay for leads that come with an email, so $50 covers about 500 leads.</p>
+      <p class="muted">Finding customer types and writing emails is free. You only pay for leads that come with an email, so <span id="billCovers">$50 covers about 500 leads</span>.</p>
       <p class="status" id="billNote"></p>
       <button class="btn btn-ghost" type="button" id="manageBilling" hidden>Manage billing</button>
     </div>
@@ -810,6 +810,7 @@ function renderAccount(){
   const plan = String(acct.plan || 'trial').toLowerCase();
   document.getElementById('billKind').textContent = acct.paid ? 'monthly ' + plan.charAt(0).toUpperCase() + plan.slice(1) + ' credit' : 'free trial credit';
   document.getElementById('billNote').textContent = '';
+  document.getElementById('billCovers').textContent = money(acct.start_credits).replace('.00', '') + ' covers about ' + Math.round(acct.start_credits / acct.lead_price).toLocaleString('en-US') + ' leads';
   document.getElementById('manageBilling').hidden = !acct.billing;
   document.querySelectorAll('.activate').forEach(b => {
     const on = acct.paid && b.dataset.plan.toLowerCase() === plan;
