@@ -171,6 +171,26 @@ header.scrolled{border-color:var(--line)}
 .linkish{background:none;border:0;padding:0;color:var(--accent);font:500 .86rem Inter,sans-serif;cursor:pointer;justify-self:start}
 .btn:focus-visible,.tabs button:focus-visible,.linkish:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 
+/* locked results + credits */
+.tbl tr.locked td{color:var(--muted)}
+.tbl tr.locked td:first-child::after{content:"  🔒";font-size:.8em}
+.tbl tr.locked .bar span{background:var(--line)}
+.unlock{margin-top:14px;background:var(--pop-soft);border-radius:14px;padding:14px 16px;display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap;font-size:.9rem;color:var(--ink)}
+.unlock .btn{padding:9px 16px;font-size:.85rem}
+.credit-chip{font-size:.8rem;font-weight:600;background:var(--pop-soft);color:var(--ink);border-radius:999px;padding:5px 11px;white-space:nowrap}
+
+/* pricing */
+.plans{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:56px;align-items:stretch}
+.plan{display:flex;flex-direction:column}
+.plan.hot{border:2px solid var(--accent)}
+.plan .price{font-family:"Instrument Serif",Georgia,serif;font-size:3rem;line-height:1;margin:18px 0 4px}
+.plan .price small{font-family:Inter,sans-serif;font-size:.9rem;color:var(--muted)}
+.plan ul{list-style:none;display:grid;gap:10px;margin:22px 0 26px;font-size:.93rem;color:var(--ink2)}
+.plan ul li::before{content:"✓";color:var(--accent);font-weight:700;margin-right:10px}
+.plan .btn{margin-top:auto}
+.plan .badge{align-self:flex-start;background:var(--accent);color:#fff;font-size:.72rem;font-weight:600;padding:4px 10px;border-radius:999px;margin-bottom:10px}
+.beta-note{margin:22px auto 0;text-align:center;font-size:.9rem;color:var(--muted)}
+
 /* faq */
 .faq{max-width:760px;margin:48px auto 0}
 details{border-top:1px solid var(--line);padding:20px 0}
@@ -240,7 +260,7 @@ footer{padding:50px 0 40px;color:var(--muted);font-size:.88rem}
   .steps{grid-template-columns:1fr 1fr}
   .split{grid-template-columns:1fr;gap:36px}
   .split.rev .panel{order:2}
-  .stats,.who-grid{grid-template-columns:1fr}
+  .stats,.who-grid,.plans{grid-template-columns:1fr}
   section{padding:80px 0}
 }
 @media (max-width:560px){
@@ -262,9 +282,11 @@ footer{padding:50px 0 40px;color:var(--muted);font-size:.88rem}
     <nav class="nav-links">
       <a href="#how">How it works</a>
       <a href="#inbox">Inbox</a>
+      <a href="#pricing">Pricing</a>
       <a href="#faq">FAQ</a>
     </nav>
     <div class="nav-right">
+      <span class="credit-chip" id="creditChip" hidden>$50.00 credits</span>
       <span class="user-chip" id="userChip" hidden></span>
       <button class="btn btn-ghost" type="button" id="signInBtn" hidden>Sign in</button>
       <button class="btn btn-ghost" type="button" id="signOutBtn" hidden>Sign out</button>
@@ -275,7 +297,7 @@ footer{padding:50px 0 40px;color:var(--muted);font-size:.88rem}
     </div>
   </div>
   <div class="mobile" id="mobile">
-    <a href="#how">How it works</a><a href="#inbox">Inbox</a><a href="#faq">FAQ</a>
+    <a href="#how">How it works</a><a href="#inbox">Inbox</a><a href="#pricing">Pricing</a><a href="#faq">FAQ</a>
     <a href="#" id="mSignIn" hidden>Sign in</a>
     <a href="#" id="mSignOut" hidden>Sign out</a>
     <a href="#start" class="btn btn-dark" style="margin-top:8px" id="mGetStarted">Get started</a>
@@ -462,6 +484,39 @@ footer{padding:50px 0 40px;color:var(--muted);font-size:.88rem}
   </div>
 </section>
 
+<!-- PRICING -->
+<section id="pricing" style="padding-top:0">
+  <div class="wrap">
+    <div class="center">
+      <span class="eyebrow">Pricing</span>
+      <h2>Start free. <em>Grow when it pays.</em></h2>
+      <p class="lead">Every new account gets $50 in credits to try it on real prospects.</p>
+    </div>
+    <div class="plans">
+      <div class="card plan">
+        <h3>Starter</h3><p>For founders testing outbound.</p>
+        <div class="price">$50 <small>/ month</small></div>
+        <ul><li>Up to 500 prospects a month</li><li>3 active campaigns</li><li>AI-written emails and follow-ups</li><li>Email support</li></ul>
+        <button class="btn btn-ghost plan-btn" type="button">Start free</button>
+      </div>
+      <div class="card plan hot">
+        <span class="badge">Most popular</span>
+        <h3>Growth</h3><p>For a steady weekly pipeline.</p>
+        <div class="price">$88 <small>/ month</small></div>
+        <ul><li>Up to 1,500 prospects a month</li><li>10 active campaigns</li><li>AI-written emails and follow-ups</li><li>Priority support</li></ul>
+        <button class="btn btn-accent plan-btn" type="button">Start free</button>
+      </div>
+      <div class="card plan">
+        <h3>Pro</h3><p>For teams and agencies.</p>
+        <div class="price">$150 <small>/ month</small></div>
+        <ul><li>Up to 4,000 prospects a month</li><li>Unlimited campaigns</li><li>AI-written emails and follow-ups</li><li>Dedicated onboarding</li></ul>
+        <button class="btn btn-ghost plan-btn" type="button">Start free</button>
+      </div>
+    </div>
+    <p class="beta-note">Free while we’re in beta. No card needed.</p>
+  </div>
+</section>
+
 <!-- FAQ -->
 <section id="faq" style="padding-top:0">
   <div class="wrap">
@@ -542,6 +597,7 @@ function renderAuth(){
   const chip = document.getElementById('userChip');
   chip.hidden = !on || !inn;
   chip.textContent = inn ? session.user.email : '';
+  document.getElementById('creditChip').hidden = !on || !inn;
 }
 
 function setAuthMode(m, note){
@@ -585,6 +641,7 @@ async function initAuth(){
   session = data.session;
   sb.auth.onAuthStateChange((event, s) => {
     session = s; renderAuth();
+    if (event === 'SIGNED_IN' && current.preview && !analyzeCtl) { closeAuth(); $('site').value = current.site; $('offer').value = current.offer || ''; analyze(); }
     if (event === 'PASSWORD_RECOVERY') openAuth('reset');
   });
   renderAuth();
@@ -597,6 +654,10 @@ document.getElementById('authModal').addEventListener('click', e => { if (e.targ
 addEventListener('keydown', e => { if (e.key === 'Escape') closeAuth(); });
 for (const id of ['signInBtn', 'mSignIn']) document.getElementById(id).addEventListener('click', e => { e.preventDefault(); openAuth('in'); });
 for (const id of ['signOutBtn', 'mSignOut']) document.getElementById(id).addEventListener('click', async e => { e.preventDefault(); if (sb) await sb.auth.signOut(); });
+document.querySelectorAll('.plan-btn').forEach(b => b.addEventListener('click', () => {
+  if (authOn && !session) openAuth('up', 'Create your free account. You get $50 in credits.');
+  else $('site').focus();
+}));
 for (const id of ['getStarted', 'mGetStarted']) document.getElementById(id).addEventListener('click', e => {
   if (authOn && !session) { e.preventDefault(); openAuth('up'); }
 });
@@ -719,7 +780,11 @@ function renderAnalysis(){
     const fill = document.createElement('span'); fill.style.width = Math.max(0, Math.min(100, sg.fit)) + '%';
     bar.append(fill); td2.append(bar, sg.fit + '%');
     tr.append(td1, td2);
-    const pick = () => { selected = i; store.set('selected', i); renderAnalysis(); };
+    if (sg.locked) tr.classList.add('locked');
+    const pick = () => {
+      if (sg.locked) { openUnlock(); return; }
+      selected = i; store.set('selected', i); renderAnalysis();
+    };
     tr.addEventListener('click', pick);
     tr.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); pick(); } });
     tb.append(tr);
@@ -735,10 +800,23 @@ function renderAnalysis(){
   const go = document.createElement('a'); go.href = '#writer'; go.className = 'btn btn-dark'; go.style.cssText = 'justify-self:start;padding:9px 16px;font-size:.85rem';
   go.textContent = 'See the example email ↓';
   d.append(dl, go);
+  const lockedCount = current.segments.filter(x => x.locked).length;
+  if (lockedCount) {
+    const u = document.createElement('div'); u.className = 'unlock';
+    const t = document.createElement('span');
+    t.textContent = `${lockedCount} more customer type${lockedCount > 1 ? 's' : ''} found. Sign up free to see them, plus $50 in credits.`;
+    const b = document.createElement('button'); b.type = 'button'; b.className = 'btn btn-accent'; b.textContent = 'Unlock all';
+    b.addEventListener('click', openUnlock);
+    u.append(t, b); d.append(u);
+  }
 }
 
 const STEPS = [...document.querySelectorAll('#demo .step')];
 function setSteps(n, active){ STEPS.forEach((el, i) => el.className = 'step' + (i < n ? ' done' : (i === n && active ? ' active' : ''))); }
+
+function openUnlock(){
+  if (authOn) openAuth('up', 'Create a free account to see every customer type. You get $50 in credits.');
+}
 
 function cleanSite(raw){ return (raw || '').trim().replace(/^https?:\/\//i, '').replace(/^www\./i, '').replace(/\/.*$/, ''); }
 
@@ -777,7 +855,6 @@ async function analyze(){
   const site = cleanSite($('site').value);
   const offer = $('offer').value.trim();
   if (!site) { $('runStatus').textContent = 'Type your website first.'; $('site').focus(); return; }
-  if (!sample && backend && authOn && !session) { openAuth('up', 'Create a free account to run it on your own website.'); return; }
   $('demoUrl').textContent = 'app.shakeoutreach.com/new?site=' + site;
   $('summaryText').textContent = 'Working on ' + site + '…';
   $('foundCount').textContent = 'thinking…';
@@ -804,11 +881,11 @@ Sort segments by fit, highest first. fit is an integer from 0 to 100.`;
     const r = sample ? await sample.json(prompt, { signal: analyzeCtl.signal }) : await api('analyze', { site, offer }, analyzeCtl.signal);
     if (!r || !Array.isArray(r.segments) || !r.segments.length) throw { code: 'invalid_json' };
     current = {
-      site, offer, example: false,
+      site, offer, example: false, preview: !!r.preview,
       summary: String(r.summary || ''),
       segments: r.segments.slice(0, 6).map(x => ({
         name: String(x.name || 'Segment'), fit: Math.round(Number(x.fit) || 0), buyer: String(x.buyer || ''),
-        why: String(x.why || ''), where: String(x.where || ''), angle: String(x.angle || '')
+        why: String(x.why || ''), where: String(x.where || ''), angle: String(x.angle || ''), locked: !!x.locked
       }))
     };
     selected = 0; store.set('analysis', current); store.set('selected', 0);

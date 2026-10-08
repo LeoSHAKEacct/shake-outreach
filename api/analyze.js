@@ -1,5 +1,7 @@
 import { requireUser, askJSON, fetchSiteText, rateLimited, send, readBody, clip } from "./_claude.js";
 
+const FREE_SEGMENTS = 2;
+
 const SCHEMA = {
   type: "object",
   additionalProperties: false,
@@ -23,9 +25,11 @@ const SCHEMA = {
 
 export default async function handler(req, res) {
   if (req.method !== "POST") return send(res, 405, { error: "method" });
+  // Signed-out visitors get a preview (first 2 segments in full, the rest locked),
+  // with a tighter limit so the free preview can't run up the AI bill.
   const user = await requireUser(req);
-  if (!user) return send(res, 401, { error: "auth_required" });
-  if (rateLimited(req, user)) return send(res, 429, { error: "rate_limited" });
+  const anon = !user;
+  if (rateLimited(req, user, anon ? 5 : 20)) return send(res, 429, { error: "rate_limited" });
   const b = readBody(req);
   const site = clip(b.site, 200), offer = clip(b.offer, 500);
   if (!site) return send(res, 400, { error: "no_site" });
@@ -47,7 +51,11 @@ Sort segments by fit, highest first.`;
 
   try {
     const r = await askJSON(prompt, SCHEMA, "low");
-    send(res, 200, { ...r, read_site: Boolean(pageText) });
+    if (anon && Array.isArray(r.segments)) {
+      r.segments = r.segments.map((x, i) => i < FREE_SEGMENTS ? x
+        : { name: x.name, fit: x.fit, buyer: "", why: "", where: "", angle: "", locked: true });
+    }
+    send(res, 200, { ...r, read_site: Boolean(pageText), preview: anon });
   } catch (e) {
     send(res, e.code === "missing_key" ? 503 : 502, { error: e.code || "upstream_error" });
   }
