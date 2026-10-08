@@ -155,6 +155,19 @@ header.scrolled{border-color:var(--line)}
 .who-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:56px}
 .who-grid .card .ico{width:44px;height:44px;border-radius:12px;background:var(--accent-soft);display:grid;place-items:center;font-size:1.3rem}
 
+/* auth */
+.user-chip{font-size:.86rem;color:var(--ink2);max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.modal{position:fixed;inset:0;z-index:100;background:rgba(10,10,14,.55);display:grid;place-items:center;padding:16px;backdrop-filter:blur(4px)}
+.modal-card{position:relative;width:100%;max-width:420px;background:var(--card);border:1px solid var(--line);border-radius:22px;box-shadow:var(--shadow);padding:28px;display:grid;gap:14px}
+.modal-card h3{font-family:"Instrument Serif",Georgia,serif;font-weight:400;font-size:1.9rem;line-height:1.1}
+.modal-x{position:absolute;top:12px;right:14px;background:none;border:0;font-size:1.6rem;line-height:1;color:var(--muted);cursor:pointer;width:36px;height:36px}
+.tabs{display:flex;gap:4px;background:var(--bg);border-radius:999px;padding:4px;justify-self:start}
+.tabs button{border:0;background:none;font:600 .86rem Inter,sans-serif;color:var(--muted);padding:7px 14px;border-radius:999px;cursor:pointer}
+.tabs button.on{background:var(--card);color:var(--ink);box-shadow:0 1px 3px rgba(0,0,0,.08)}
+.muted{color:var(--muted);font-size:.9rem}
+.linkish{background:none;border:0;padding:0;color:var(--accent);font:500 .86rem Inter,sans-serif;cursor:pointer;justify-self:start}
+.btn:focus-visible,.tabs button:focus-visible,.linkish:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
 /* faq */
 .faq{max-width:760px;margin:48px auto 0}
 details{border-top:1px solid var(--line);padding:20px 0}
@@ -249,7 +262,10 @@ footer{padding:50px 0 40px;color:var(--muted);font-size:.88rem}
       <a href="#faq">FAQ</a>
     </nav>
     <div class="nav-right">
-      <a href="#start" class="btn btn-dark">Get started</a>
+      <span class="user-chip" id="userChip" hidden></span>
+      <button class="btn btn-ghost" type="button" id="signInBtn" hidden>Sign in</button>
+      <button class="btn btn-ghost" type="button" id="signOutBtn" hidden>Sign out</button>
+      <a href="#start" class="btn btn-dark" id="getStarted">Get started</a>
       <button class="burger" aria-label="Menu" onclick="document.getElementById('mobile').classList.toggle('open')">
         <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
       </button>
@@ -257,7 +273,9 @@ footer{padding:50px 0 40px;color:var(--muted);font-size:.88rem}
   </div>
   <div class="mobile" id="mobile">
     <a href="#how">How it works</a><a href="#inbox">Inbox</a><a href="#faq">FAQ</a>
-    <a href="#start" class="btn btn-dark" style="margin-top:8px">Get started</a>
+    <a href="#" id="mSignIn" hidden>Sign in</a>
+    <a href="#" id="mSignOut" hidden>Sign out</a>
+    <a href="#start" class="btn btn-dark" style="margin-top:8px" id="mGetStarted">Get started</a>
   </div>
 </header>
 
@@ -503,7 +521,129 @@ footer{padding:50px 0 40px;color:var(--muted);font-size:.88rem}
   </div>
 </footer>
 
+<div class="modal" id="authModal" hidden>
+  <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="authTitle">
+    <button class="modal-x" type="button" id="authClose" aria-label="Close">×</button>
+    <div class="tabs" id="authTabs">
+      <button type="button" id="tabUp" class="on">Create account</button>
+      <button type="button" id="tabIn">Sign in</button>
+    </div>
+    <h3 id="authTitle">Create your free account</h3>
+    <p class="muted" id="authNote">Run Shake Outreach on your own website.</p>
+    <form class="fields" id="authForm">
+      <div class="field" id="emailField"><label for="authEmail">Email</label><input id="authEmail" type="email" autocomplete="email" required></div>
+      <div class="field" id="passField"><label for="authPass">Password</label><input id="authPass" type="password" autocomplete="new-password" minlength="6" required></div>
+      <button class="btn btn-accent" type="submit" id="authSubmit">Create account</button>
+      <button class="linkish" type="button" id="forgotBtn" hidden>Forgot your password?</button>
+      <p class="status" id="authStatus"></p>
+    </form>
+  </div>
+</div>
+
 <script>
+// ---- accounts (Supabase) ----
+let sb = null, session = null, authOn = false, authMode = 'up';
+const SUPABASE_JS = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js';
+
+function loadScript(src){
+  return new Promise((ok, bad) => { const el = document.createElement('script'); el.src = src; el.onload = ok; el.onerror = bad; document.head.append(el); });
+}
+
+function renderAuth(){
+  const on = authOn, inn = !!session;
+  document.getElementById('signInBtn').hidden = !on || inn;
+  document.getElementById('mSignIn').hidden = !on || inn;
+  document.getElementById('signOutBtn').hidden = !on || !inn;
+  document.getElementById('mSignOut').hidden = !on || !inn;
+  const chip = document.getElementById('userChip');
+  chip.hidden = !on || !inn;
+  chip.textContent = inn ? session.user.email : '';
+}
+
+function setAuthMode(m, note){
+  authMode = m;
+  const t = { up: ['Create your free account', 'Create account'], in: ['Welcome back', 'Sign in'], reset: ['Set a new password', 'Save password'] }[m];
+  document.getElementById('authTitle').textContent = t[0];
+  document.getElementById('authSubmit').textContent = t[1];
+  document.getElementById('tabUp').classList.toggle('on', m === 'up');
+  document.getElementById('tabIn').classList.toggle('on', m === 'in');
+  document.getElementById('authTabs').hidden = m === 'reset';
+  document.getElementById('emailField').hidden = m === 'reset';
+  document.getElementById('authEmail').required = m !== 'reset';
+  document.getElementById('forgotBtn').hidden = m !== 'in';
+  document.getElementById('authPass').autocomplete = m === 'in' ? 'current-password' : 'new-password';
+  document.getElementById('authNote').textContent = note || (m === 'up' ? 'Run Shake Outreach on your own website.' : m === 'in' ? 'Sign in to keep going.' : 'Choose a new password for your account.');
+  const st = document.getElementById('authStatus'); st.className = 'status'; st.textContent = '';
+}
+function openAuth(m, note){
+  setAuthMode(m, note);
+  document.getElementById('authModal').hidden = false;
+  document.getElementById(m === 'reset' ? 'authPass' : 'authEmail').focus();
+}
+function closeAuth(){ document.getElementById('authModal').hidden = true; }
+
+async function initAuth(){
+  let c = null;
+  try { const r = await fetch('/api/config'); if (r.ok) c = await r.json(); } catch {}
+  if (!c || !c.supabaseUrl || !c.supabaseAnonKey) return;
+  try { await loadScript(SUPABASE_JS); } catch { return; }
+  sb = window.supabase.createClient(c.supabaseUrl, c.supabaseAnonKey);
+  authOn = true;
+  const { data } = await sb.auth.getSession();
+  session = data.session;
+  sb.auth.onAuthStateChange((event, s) => {
+    session = s; renderAuth();
+    if (event === 'PASSWORD_RECOVERY') openAuth('reset');
+  });
+  renderAuth();
+}
+
+document.getElementById('tabUp').addEventListener('click', () => setAuthMode('up'));
+document.getElementById('tabIn').addEventListener('click', () => setAuthMode('in'));
+document.getElementById('authClose').addEventListener('click', closeAuth);
+document.getElementById('authModal').addEventListener('click', e => { if (e.target.id === 'authModal') closeAuth(); });
+addEventListener('keydown', e => { if (e.key === 'Escape') closeAuth(); });
+for (const id of ['signInBtn', 'mSignIn']) document.getElementById(id).addEventListener('click', e => { e.preventDefault(); openAuth('in'); });
+for (const id of ['signOutBtn', 'mSignOut']) document.getElementById(id).addEventListener('click', async e => { e.preventDefault(); if (sb) await sb.auth.signOut(); });
+for (const id of ['getStarted', 'mGetStarted']) document.getElementById(id).addEventListener('click', e => {
+  if (authOn && !session) { e.preventDefault(); openAuth('up'); }
+});
+
+document.getElementById('forgotBtn').addEventListener('click', async () => {
+  const st = document.getElementById('authStatus');
+  const email = document.getElementById('authEmail').value.trim();
+  if (!email) { st.className = 'status err'; st.textContent = 'Type your email first.'; return; }
+  const { error } = await sb.auth.resetPasswordForEmail(email, { redirectTo: location.origin });
+  st.className = error ? 'status err' : 'status ok';
+  st.textContent = error ? error.message : 'Check your inbox for a link to reset your password.';
+});
+
+document.getElementById('authForm').addEventListener('submit', async e => {
+  e.preventDefault();
+  const st = document.getElementById('authStatus'), btn = document.getElementById('authSubmit');
+  const email = document.getElementById('authEmail').value.trim(), password = document.getElementById('authPass').value;
+  btn.disabled = true; st.className = 'status'; st.textContent = 'One moment…';
+  try {
+    if (authMode === 'up') {
+      const { data, error } = await sb.auth.signUp({ email, password, options: { emailRedirectTo: location.origin } });
+      if (error) throw error;
+      if (data.session) { closeAuth(); }
+      else { st.className = 'status ok'; st.textContent = 'Almost there. Check your inbox and click the link to confirm your email, then sign in.'; }
+    } else if (authMode === 'in') {
+      const { error } = await sb.auth.signInWithPassword({ email, password });
+      if (error) throw error;
+      closeAuth();
+    } else {
+      const { error } = await sb.auth.updateUser({ password });
+      if (error) throw error;
+      st.className = 'status ok'; st.textContent = 'Password saved. You’re signed in.';
+      setTimeout(closeAuth, 1200);
+    }
+  } catch (err) {
+    st.className = 'status err'; st.textContent = err.message || 'Something went wrong. Try again.';
+  } finally { btn.disabled = false; }
+});
+
 document.getElementById('yr').textContent = new Date().getFullYear();
 
 // sticky header border
@@ -593,15 +733,19 @@ function cleanSite(raw){ return (raw || '').trim().replace(/^https?:\/\//i, '').
 
 async function api(path, body, signal){
   let r;
-  try { r = await fetch('/api/' + path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body), signal }); }
+  const headers = { 'Content-Type': 'application/json' };
+  if (session) headers.Authorization = 'Bearer ' + session.access_token;
+  try { r = await fetch('/api/' + path, { method: 'POST', headers, body: JSON.stringify(body), signal }); }
   catch (e) { throw { code: signal && signal.aborted ? 'cancelled' : 'network' }; }
   const data = await r.json().catch(() => ({}));
+  if (r.status === 401) { openAuth('up', 'Create a free account to run it on your own website.'); throw { code: 'auth_required' }; }
   if (!r.ok) throw { code: data.error || 'upstream_error' };
   return data;
 }
 
 function sampleError(e){
   switch (e && e.code) {
+    case 'auth_required': return 'Sign in or create a free account to run it.';
     case 'missing_key': return 'The AI isn’t switched on yet: the site owner needs to add an Anthropic API key in Vercel.';
     case 'bad_key': return 'The AI key on the server is wrong. The site owner needs to check it in Vercel.';
     case 'network': return 'Couldn’t reach the server. Check your connection and try again.';
@@ -622,6 +766,7 @@ async function analyze(){
   const site = cleanSite($('site').value);
   const offer = $('offer').value.trim();
   if (!site) { $('runStatus').textContent = 'Type your website first.'; $('site').focus(); return; }
+  if (!sample && backend && authOn && !session) { openAuth('up', 'Create a free account to run it on your own website.'); return; }
   $('demoUrl').textContent = 'app.shakeoutreach.com/new?site=' + site;
   $('summaryText').textContent = 'Working on ' + site + '…';
   $('foundCount').textContent = 'thinking…';
@@ -699,6 +844,7 @@ async function writeEmail(){
   const f = { sender: $('sender').value.trim(), name: $('pName').value.trim(), role: $('pRole').value.trim(),
               company: $('pCompany').value.trim(), email: $('pEmail').value.trim(), notes: $('pNotes').value.trim() };
   store.set('sender', f.sender);
+  if (!sample && backend && authOn && !session) { openAuth('up', 'Create a free account to write emails.'); return; }
   if (!f.name && !f.company) { $('writeStatus').className = 'status err'; $('writeStatus').textContent = 'Add at least the prospect’s name or company.'; return; }
   $('writeStatus').className = 'status';
 
@@ -839,6 +985,7 @@ $('sendStatus').textContent = 'Example email. Fill in a prospect and press “Wr
 renderAnalysis(); renderSaved(); setMode();
 
 if (!window.claude) {
+  initAuth();
   fetch('/api/health').then(r => r.ok ? r.json() : null).then(h => {
     if (h && h.ai) { backend = true; setMode(); $('runStatus').textContent = 'Takes about 20 seconds. We read your homepage first.'; }
     else if (h) { $('runStatus').textContent = 'Preview mode: the AI isn’t switched on yet, so you’ll see example results.'; }

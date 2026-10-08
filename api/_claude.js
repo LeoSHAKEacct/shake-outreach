@@ -7,13 +7,29 @@ const client = new Anthropic();
 
 // --- tiny per-instance rate limit (best effort; resets when the function cold-starts) ---
 const hits = new Map();
-export function rateLimited(req, limit = 20, windowMs = 10 * 60 * 1000) {
-  const ip = String(req.headers["x-forwarded-for"] || "").split(",")[0].trim() || "unknown";
+export function rateLimited(req, user, limit = 20, windowMs = 10 * 60 * 1000) {
+  const ip = (user && user.id) || String(req.headers["x-forwarded-for"] || "").split(",")[0].trim() || "unknown";
   const now = Date.now();
   const list = (hits.get(ip) || []).filter(t => now - t < windowMs);
   list.push(now);
   hits.set(ip, list);
   return list.length > limit;
+}
+
+// When Supabase is configured, every AI call needs a signed-in user.
+// Returns the user, {} when accounts are off, or null when the caller isn't signed in.
+export async function requireUser(req) {
+  const url = process.env.SUPABASE_URL, anon = process.env.SUPABASE_ANON_KEY;
+  if (!url || !anon) return {};
+  const token = String(req.headers.authorization || "").replace(/^Bearer\s+/i, "");
+  if (!token) return null;
+  try {
+    const r = await fetch(url.replace(/\/$/, "") + "/auth/v1/user", {
+      headers: { Authorization: "Bearer " + token, apikey: anon },
+      signal: AbortSignal.timeout(5000),
+    });
+    return r.ok ? await r.json() : null;
+  } catch { return null; }
 }
 
 export function send(res, status, body) {

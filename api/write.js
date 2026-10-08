@@ -1,4 +1,4 @@
-import { askJSON, rateLimited, send, readBody, clip } from "./_claude.js";
+import { requireUser, askJSON, rateLimited, send, readBody, clip } from "./_claude.js";
 
 const SCHEMA = {
   type: "object",
@@ -21,7 +21,9 @@ const SCHEMA = {
 
 export default async function handler(req, res) {
   if (req.method !== "POST") return send(res, 405, { error: "method" });
-  if (rateLimited(req)) return send(res, 429, { error: "rate_limited" });
+  const user = await requireUser(req);
+  if (!user) return send(res, 401, { error: "auth_required" });
+  if (rateLimited(req, user)) return send(res, 429, { error: "rate_limited" });
   const b = readBody(req);
   const f = {
     sender: clip(b.sender, 120), summary: clip(b.summary, 400), site: clip(b.site, 200), offer: clip(b.offer, 500),
