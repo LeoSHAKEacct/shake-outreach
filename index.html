@@ -211,7 +211,7 @@ footer{padding:50px 0 40px;color:var(--muted);font-size:.88rem}
 .status.err{color:var(--accent)}
 .status a{text-decoration:underline}
 .writer{margin:20px auto 0;max-width:980px;text-align:left}
-.writer .demo-body{grid-template-columns:1fr 1.25fr}
+.mailbox{padding:24px;display:grid;gap:14px}
 .fields{display:grid;gap:12px}
 .field{display:grid;gap:5px;min-width:0}
 .field label{font-size:.72rem;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-weight:600}
@@ -235,7 +235,7 @@ footer{padding:50px 0 40px;color:var(--muted);font-size:.88rem}
 @media (max-width:920px){
   .nav-links,.nav-right .btn-ghost{display:none}
   .burger{display:block}
-  .demo-body,.writer .demo-body{grid-template-columns:1fr}
+  .demo-body{grid-template-columns:1fr}
   .demo-left{border-right:0;border-bottom:1px solid var(--line)}
   .steps{grid-template-columns:1fr 1fr}
   .split{grid-template-columns:1fr;gap:36px}
@@ -320,38 +320,17 @@ footer{padding:50px 0 40px;color:var(--muted);font-size:.88rem}
     </div>
 
     <div class="demo writer" id="writer">
-      <div class="demo-bar"><span style="font-weight:600;color:var(--ink)">Write to a prospect</span><span class="mode" id="segTag">Segment: —</span></div>
-      <form class="demo-body" id="writeForm">
-        <div class="demo-left">
-          <div class="fields">
-            <div class="field"><label for="sender">You (name, company)</label><input id="sender" type="text" placeholder="Leo, Bikini Factory" autocomplete="off"></div>
-            <div class="row2">
-              <div class="field"><label for="pName">Prospect name</label><input id="pName" type="text" placeholder="Maria Lopez" autocomplete="off"></div>
-              <div class="field"><label for="pRole">Their role</label><input id="pRole" type="text" placeholder="Owner" autocomplete="off"></div>
-            </div>
-            <div class="row2">
-              <div class="field"><label for="pCompany">Company</label><input id="pCompany" type="text" placeholder="Coastline Swim Co." autocomplete="off"></div>
-              <div class="field"><label for="pEmail">Their email</label><input id="pEmail" type="email" placeholder="maria@coastlineswim.com" autocomplete="off"></div>
-            </div>
-            <div class="field"><label for="pNotes">What you know about them</label><textarea id="pNotes" placeholder="Opened a second store in Tulum this year. Their recycled-nylon line sold out."></textarea></div>
-            <div class="actions"><button class="btn btn-dark" type="submit" id="writeBtn">Write the email →</button></div>
-            <p class="status" id="writeStatus"></p>
-          </div>
+      <div class="demo-bar"><span style="font-weight:600;color:var(--ink)">Your email</span></div>
+      <div class="mailbox">
+        <div class="field"><label for="pEmail">To</label><input id="pEmail" type="email" value="maria@coastlineswim.com" autocomplete="off"></div>
+        <div class="field"><label for="eSubject">Subject</label><input id="eSubject" type="text"></div>
+        <div class="field"><label for="eBody">Email</label><textarea id="eBody" class="body-edit"></textarea></div>
+        <div class="actions">
+          <button class="btn btn-accent" type="button" id="gmailBtn">Open in Gmail</button>
+          <button class="btn btn-ghost" type="button" id="copyBtn">Copy</button>
         </div>
-        <div class="demo-right">
-          <div class="fields">
-            <div class="field"><label for="eSubject">Subject</label><input id="eSubject" type="text"></div>
-            <div class="field"><label for="eBody">Email</label><textarea id="eBody" class="body-edit"></textarea></div>
-            <div class="actions">
-              <button class="btn btn-accent" type="button" id="gmailBtn">Save to Gmail drafts</button>
-              <button class="btn btn-ghost" type="button" id="copyBtn">Copy</button>
-            </div>
-            <p class="status" id="sendStatus"></p>
-            <div class="fu" id="followups"></div>
-            <div class="saved" id="saved"></div>
-          </div>
-        </div>
-      </form>
+        <p class="status" id="sendStatus"></p>
+      </div>
     </div>
   </div>
 </section>
@@ -533,8 +512,8 @@ footer{padding:50px 0 40px;color:var(--muted);font-size:.88rem}
     </div>
     <h3 id="authTitle">Create your free account</h3>
     <p class="muted" id="authNote">Run Shake Outreach on your own website.</p>
-    <button class="btn btn-ghost google-btn" type="button" id="googleBtn" hidden><svg viewBox="0 0 48 48" width="18" height="18" aria-hidden="true"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.9 1.2 8 3.1l5.7-5.7C34.1 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.3-.4-3.5z"/><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.9 1.2 8 3.1l5.7-5.7C34.1 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/><path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.1 26.7 36 24 36c-5.2 0-9.6-3.3-11.3-8l-6.5 5C9.5 39.6 16.2 44 24 44z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.2 4.2-4.1 5.6l6.2 5.2C37 39.2 44 34 44 24c0-1.3-.1-2.3-.4-3.5z"/></svg>Continue with Google</button>
-    <div class="or" id="orLine" hidden><span>or with email</span></div>
+    <button class="btn btn-ghost google-btn" type="button" id="googleBtn"><svg viewBox="0 0 48 48" width="18" height="18" aria-hidden="true"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.9 1.2 8 3.1l5.7-5.7C34.1 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.3-.4-3.5z"/><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.9 1.2 8 3.1l5.7-5.7C34.1 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/><path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.1 26.7 36 24 36c-5.2 0-9.6-3.3-11.3-8l-6.5 5C9.5 39.6 16.2 44 24 44z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.2 4.2-4.1 5.6l6.2 5.2C37 39.2 44 34 44 24c0-1.3-.1-2.3-.4-3.5z"/></svg>Continue with Google</button>
+    <div class="or" id="orLine"><span>or with email</span></div>
     <form class="fields" id="authForm">
       <div class="field" id="emailField"><label for="authEmail">Email</label><input id="authEmail" type="email" autocomplete="email" required></div>
       <div class="field" id="passField"><label for="authPass">Password</label><input id="authPass" type="password" autocomplete="new-password" minlength="6" required></div>
@@ -574,8 +553,8 @@ function setAuthMode(m, note){
   document.getElementById('tabIn').classList.toggle('on', m === 'in');
   document.getElementById('authTabs').hidden = m === 'reset';
   // Google button shows only when the Google provider is switched on in Supabase
-  document.getElementById('googleBtn').hidden = !googleOn || m === 'reset';
-  document.getElementById('orLine').hidden = !googleOn || m === 'reset';
+  document.getElementById('googleBtn').hidden = m === 'reset';
+  document.getElementById('orLine').hidden = m === 'reset';
   document.getElementById('emailField').hidden = m === 'reset';
   document.getElementById('authEmail').required = m !== 'reset';
   document.getElementById('forgotBtn').hidden = m !== 'in';
@@ -624,6 +603,7 @@ for (const id of ['getStarted', 'mGetStarted']) document.getElementById(id).addE
 
 document.getElementById('googleBtn').addEventListener('click', async () => {
   const st = document.getElementById('authStatus');
+  if (!googleOn) { st.className = 'status err'; st.textContent = 'Google sign-in is almost ready. Use email for now.'; return; }
   const { error } = await sb.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: location.origin } });
   if (error) { st.className = 'status err'; st.textContent = error.message; }
 });
@@ -661,7 +641,7 @@ document.getElementById('authForm').addEventListener('submit', async e => {
       const { data, error } = await sb.auth.signUp({ email, password, options: { emailRedirectTo: location.origin } });
       if (error) throw error;
       if (data.session) { closeAuth(); }
-      else { st.className = 'status ok'; st.textContent = 'Almost there. Check your inbox (and spam) for the confirmation link. If you already have an account with this email, sign in instead, or use Continue with Google.'; }
+      else { st.className = 'status ok'; st.textContent = 'Check your email to confirm your account.'; }
     } else if (authMode === 'in') {
       const { error } = await sb.auth.signInWithPassword({ email, password });
       if (error) throw error;
@@ -753,10 +733,8 @@ function renderAnalysis(){
     dl.append(dt, dd);
   });
   const go = document.createElement('a'); go.href = '#writer'; go.className = 'btn btn-dark'; go.style.cssText = 'justify-self:start;padding:9px 16px;font-size:.85rem';
-  go.textContent = 'Write emails for this segment ↓';
+  go.textContent = 'See the example email ↓';
   d.append(dl, go);
-  $('segTag').textContent = 'Segment: ' + sg.name;
-  if (!$('pRole').value) $('pRole').placeholder = sg.buyer || 'Owner';
 }
 
 const STEPS = [...document.querySelectorAll('#demo .step')];
@@ -869,74 +847,10 @@ function previewAnalyze(site, offer){
   }, 700);
 }
 
-// ---- step 2: write ----
-let writeCtl = null;
-async function writeEmail(){
-  if (writeCtl) { writeCtl.abort(); return; }
-  const sg = current.segments[selected];
-  const f = { sender: $('sender').value.trim(), name: $('pName').value.trim(), role: $('pRole').value.trim(),
-              company: $('pCompany').value.trim(), email: $('pEmail').value.trim(), notes: $('pNotes').value.trim() };
-  store.set('sender', f.sender);
-  if (!sample && backend && authOn && !session) { openAuth('up', 'Create a free account to write emails.'); return; }
-  if (!f.name && !f.company) { $('writeStatus').className = 'status err'; $('writeStatus').textContent = 'Add at least the prospect’s name or company.'; return; }
-  $('writeStatus').className = 'status';
-
-  if (!sample && !backend) {
-    const first = (f.name || 'there').split(' ')[0];
-    showEmail({
-      subject: `${f.company || 'Quick idea'}: ${sg.angle ? sg.angle.replace(/\.$/, '').toLowerCase() : 'a quick idea'}`,
-      body: `Hi ${first},\n\n${f.notes ? 'I saw that ' + f.notes.replace(/\.$/, '').replace(/^./, c => c.toLowerCase()) + '. Congrats.\n\n' : ''}${current.summary}\n\n${sg.angle}\n\nWorth a 15-minute call next week?\n\n${f.sender || 'Your name'}`,
-      followups: []
-    });
-    $('writeStatus').textContent = 'Preview mode: this is a template. The live version writes it with Claude.';
-    return;
-  }
-
-  writeCtl = new AbortController();
-  $('writeBtn').textContent = 'Stop';
-  $('writeStatus').textContent = 'Writing…';
-  const prompt = `Write a short, personal cold email from a small business to one prospect.
-
-SENDER: ${f.sender || 'not given (sign off as "[Your name]")'}
-SENDER'S BUSINESS: ${current.summary} Website: ${current.site}.${current.offer ? ' They sell: ' + current.offer : ''}
-TARGET SEGMENT: ${sg.name}. Why they buy: ${sg.why} Hook: ${sg.angle}
-PROSPECT: ${f.name || 'name unknown'}${f.role ? ', ' + f.role : ''}${f.company ? ' at ' + f.company : ''}
-WHAT WE KNOW ABOUT THEM: ${f.notes || 'nothing specific'}
-
-Rules:
-- Under 110 words. Plain text, no markdown, no bullet points.
-- Open with something specific about the prospect if notes are given. Never invent facts about them beyond the notes.
-- One clear, low-pressure ask (a short call or a reply).
-- Sound like a person, not a marketer. No buzzwords, no exclamation marks.
-- Also write 2 short follow-ups (under 60 words each) for day 3 and day 7, each adding something new.
-
-Reply with only JSON: {"subject":"under 7 words","body":"the email with \\n line breaks","followups":[{"day":3,"body":"..."},{"day":7,"body":"..."}]}`;
-  try {
-    const r = sample ? await sample.json(prompt, { signal: writeCtl.signal, cache: false })
-      : await api('write', { ...f, summary: current.summary, site: current.site, offer: current.offer || '', segment: sg }, writeCtl.signal);
-    if (!r || !r.body) throw { code: 'invalid_json' };
-    showEmail({ subject: String(r.subject || ''), body: String(r.body), followups: Array.isArray(r.followups) ? r.followups : [] });
-    $('writeStatus').className = 'status ok';
-    $('writeStatus').textContent = 'Done. Edit anything, then save it to Gmail or copy it.';
-  } catch (e) {
-    $('writeStatus').className = 'status err';
-    $('writeStatus').textContent = sampleError(e);
-  } finally {
-    writeCtl = null; $('writeBtn').textContent = 'Write the email →';
-  }
-}
-
 function showEmail(e){
   lastEmail = e;
   $('eSubject').value = e.subject;
   $('eBody').value = e.body;
-  const fu = $('followups'); fu.replaceChildren();
-  e.followups.forEach(x => {
-    const d = document.createElement('div'); d.className = 'fu-item';
-    const b = document.createElement('b'); b.textContent = 'Follow-up · day ' + (Number(x.day) || '?');
-    d.append(b, String(x.body || ''));
-    fu.append(d);
-  });
   $('sendStatus').textContent = '';
 }
 
@@ -969,9 +883,6 @@ $('gmailBtn').addEventListener('click', async () => {
     const url = res && res.payload && res.payload.viewUrl;
     st.className = 'status ok'; st.replaceChildren('Saved to your Gmail drafts. ');
     if (url) { const a = document.createElement('a'); a.href = url; a.target = '_blank'; a.rel = 'noopener'; a.textContent = 'Open in Gmail'; st.append(a); }
-    const saved = store.get('saved', []);
-    saved.unshift({ who: ($('pName').value.trim() || $('pCompany').value.trim() || to || 'Prospect'), subject, url: url || '', at: Date.now() });
-    store.set('saved', saved.slice(0, 20)); renderSaved();
   } catch (e) {
     st.className = 'status err'; st.textContent = gmailError(e);
   } finally { btn.disabled = false; }
@@ -983,22 +894,8 @@ $('copyBtn').addEventListener('click', async () => {
   catch { $('eBody').select(); st.className = 'status'; st.textContent = 'Press Ctrl+C (or ⌘C) to copy the selected text.'; }
 });
 
-function renderSaved(){
-  const list = store.get('saved', []); const box = $('saved'); box.replaceChildren();
-  if (!list.length) return;
-  const h = document.createElement('div'); h.className = 'field'; const l = document.createElement('label'); l.textContent = 'Saved drafts (' + list.length + ')'; h.append(l); box.append(h);
-  list.slice(0, 6).forEach(x => {
-    const row = document.createElement('div'); row.className = 'saved-item';
-    const t = document.createElement('span'); t.textContent = x.who + ' · ' + x.subject;
-    row.append(t);
-    if (x.url) { const a = document.createElement('a'); a.href = x.url; a.target = '_blank'; a.rel = 'noopener'; a.textContent = 'Open'; row.append(a); }
-    box.append(row);
-  });
-}
-
 // ---- wiring ----
 $('tryForm').addEventListener('submit', e => { e.preventDefault(); analyze(); });
-$('writeForm').addEventListener('submit', e => { e.preventDefault(); writeEmail(); });
 $('tryForm2').addEventListener('submit', e => {
   e.preventDefault();
   $('site').value = e.target.querySelector('input').value;
@@ -1006,16 +903,13 @@ $('tryForm2').addEventListener('submit', e => {
   analyze();
 });
 
-$('sender').value = store.get('sender', '');
 if (current.site && !current.example) $('site').value = current.site;
 if (current.offer) $('offer').value = current.offer;
 showEmail({
   subject: 'Your new resort line',
   body: 'Hi Maria,\n\nSaw you opened a second store in Tulum, and that your recycled-nylon pieces sold out last season. Congrats.\n\nWe make private-label swimwear in small runs (from 50 pieces), so you can test new cuts without sitting on stock.\n\nWorth a 15-minute call next week?\n\nLeo',
-  followups: []
 });
-$('sendStatus').textContent = 'Example email. Fill in a prospect and press “Write the email”.';
-renderAnalysis(); renderSaved(); setMode();
+renderAnalysis(); setMode();
 
 if (!window.claude) {
   initAuth();
