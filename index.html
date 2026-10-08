@@ -196,6 +196,15 @@ header.scrolled{border-color:var(--line)}
 .plan .badge{align-self:flex-start;background:var(--accent);color:#fff;font-size:.72rem;font-weight:600;padding:4px 10px;border-radius:999px;margin-bottom:10px}
 .beta-note{margin:22px auto 0;text-align:center;font-size:.9rem;color:var(--muted)}
 
+/* past searches */
+.history{max-width:560px;margin:28px auto 0;text-align:left}
+.history-title{font-size:.72rem;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);font-weight:600;margin-bottom:10px}
+.history-list{display:grid;gap:8px}
+.history-item{display:flex;justify-content:space-between;align-items:center;gap:12px;width:100%;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px 16px;font:500 .93rem Inter,sans-serif;color:var(--ink);cursor:pointer;text-align:left}
+.history-item:hover{border-color:var(--accent)}
+.history-item small{color:var(--muted);font-weight:400;white-space:nowrap}
+.history-item span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
 /* signed-in app view */
 .app-only{display:none}
 body.app .app-only{display:block}
@@ -335,6 +344,10 @@ footer{padding:50px 0 40px;color:var(--muted);font-size:.88rem}
     </form>
     <input id="offer" class="offer" type="text" placeholder="What do you sell? (optional, makes results sharper)" aria-label="What you sell" autocomplete="off">
     <p class="hint" id="runStatus">Takes about 20 seconds.</p>
+    <div class="history app-only" id="history" hidden>
+      <div class="history-title">Your past searches</div>
+      <div class="history-list" id="historyList"></div>
+    </div>
 
     <div class="demo" id="demo" hidden>
       <div class="demo-bar"><i></i><i></i><i></i><span class="url" id="demoUrl">app.shakeoutreach.com/new?site=bikinifactory.com</span><span class="mode" id="modeTag">Preview</span></div>
@@ -644,6 +657,42 @@ function openProfile(){
 }
 function closeProfile(){ document.getElementById('profileModal').hidden = true; }
 
+// An "active" search stays open for the rest of this login (sessionStorage);
+// past searches are kept per user in this browser.
+function isActive(){ try { return sessionStorage.getItem('so_active') === '1'; } catch { return false; } }
+function setActive(on){ try { on ? sessionStorage.setItem('so_active', '1') : sessionStorage.removeItem('so_active'); } catch {} }
+function runningNow(){ const b = document.getElementById('runBtn'); return !!(b && b.disabled); }
+function historyKey(){ return session ? 'so_hist_' + session.user.id : null; }
+function loadHistory(){ const k = historyKey(); if (!k) return []; try { return JSON.parse(localStorage.getItem(k) || '[]'); } catch { return []; } }
+function saveToHistory(analysis){
+  const k = historyKey(); if (!k) return;
+  const list = loadHistory().filter(x => x.analysis.site !== analysis.site);
+  list.unshift({ at: Date.now(), analysis });
+  try { localStorage.setItem(k, JSON.stringify(list.slice(0, 20))); } catch {}
+}
+function renderHistory(){
+  const box = document.getElementById('history'), list = document.getElementById('historyList');
+  const items = session ? loadHistory() : [];
+  box.hidden = !items.length;
+  list.replaceChildren();
+  items.forEach(h => {
+    const b = document.createElement('button'); b.type = 'button'; b.className = 'history-item';
+    const t = document.createElement('span'); t.textContent = h.analysis.site;
+    const d = document.createElement('small');
+    d.textContent = h.analysis.segments.length + ' customer types · ' + new Date(h.at).toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
+    b.append(t, d);
+    b.addEventListener('click', () => {
+      current = h.analysis; selected = 0;
+      store.set('analysis', current); store.set('selected', 0);
+      $('site').value = current.site; $('offer').value = current.offer || '';
+      setActive(true);
+      $('demo').hidden = false; renderAnalysis();
+      $('demo').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+    list.append(b);
+  });
+}
+
 function renderAuth(){
   const on = authOn, inn = !!session;
   document.getElementById('signInBtn').hidden = !on || inn;
@@ -655,10 +704,12 @@ function renderAuth(){
   document.getElementById('mGetStarted').hidden = on && inn;
   const app = on && inn;
   document.body.classList.toggle('app', app);
-  if (app && typeof current !== 'undefined' && !current.example) {
-    document.getElementById('demo').hidden = false;
-    document.getElementById('writer').hidden = false;
+  const showResults = app && typeof current !== 'undefined' && !current.example && isActive();
+  if (!runningNow()) {
+    document.getElementById('demo').hidden = !showResults;
+    if (showResults) renderAnalysis(); else document.getElementById('writer').hidden = true;
   }
+  renderHistory();
   if (inn) {
     const n = firstName(session.user);
     document.getElementById('appHello').textContent = 'Hi ' + n + ' 👋';
@@ -720,7 +771,7 @@ document.getElementById('authClose').addEventListener('click', closeAuth);
 document.getElementById('authModal').addEventListener('click', e => { if (e.target.id === 'authModal') closeAuth(); });
 addEventListener('keydown', e => { if (e.key === 'Escape') { closeAuth(); closeProfile(); } });
 for (const id of ['signInBtn', 'mSignIn']) document.getElementById(id).addEventListener('click', e => { e.preventDefault(); openAuth('in'); });
-document.getElementById('signOutBtn').addEventListener('click', async () => { if (sb) await sb.auth.signOut(); closeProfile(); });
+document.getElementById('signOutBtn').addEventListener('click', async () => { setActive(false); if (sb) await sb.auth.signOut(); closeProfile(); });
 for (const id of ['profileBtn', 'mProfile']) document.getElementById(id).addEventListener('click', e => { e.preventDefault(); if (session) openProfile(); });
 document.getElementById('profileClose').addEventListener('click', closeProfile);
 document.getElementById('profileModal').addEventListener('click', e => { if (e.target.id === 'profileModal') closeProfile(); });
@@ -879,6 +930,7 @@ function renderAnalysis(){
     showEmail({ subject: sg.subject, body: sg.body });
     $('pEmail').value = '';
   }
+  $('writer').hidden = $('demo').hidden || (!current.example && !sg.body);
   const d = $('segDetail'); d.replaceChildren();
   const dl = document.createElement('dl');
   [['Email', sg.buyer], ['Why', sg.why], ['Find them', sg.where], ['Lead with', sg.angle]].forEach(([k, v]) => {
@@ -935,7 +987,7 @@ async function analyze(){
   const site = cleanSite($('site').value);
   const offer = $('offer').value.trim();
   if (!site) { $('runStatus').textContent = 'Type your website first.'; $('site').focus(); return; }
-  $('demo').hidden = false; $('writer').hidden = false;
+  $('demo').hidden = false; $('writer').hidden = true;
   $('demo').scrollIntoView({ behavior: 'smooth', block: 'start' });
   setRunning(true);
   $('demoUrl').textContent = 'app.shakeoutreach.com/new?site=' + site;
@@ -972,6 +1024,7 @@ Sort segments by fit, highest first. fit is an integer from 0 to 100.`;
       }))
     };
     selected = 0; store.set('analysis', current); store.set('selected', 0);
+    setActive(true); saveToHistory(current); renderHistory();
     setSteps(5); renderAnalysis();
     $('runStatus').textContent = 'Done. Pick a customer type to see its email.';
   } catch (e) {
