@@ -111,8 +111,11 @@ export default async function handler(req, res) {
   const user = await requireUser(req);
   if (!user || !user.id) return send(res, 401, { error: "auth_required" });
   if (!process.env.STRIPE_SECRET_KEY) return send(res, 503, { error: "payments_off" });
-  const action = (req.query && req.query.do) || "";
-  const key = String(readBody(req).plan || "").toLowerCase();
+  // The action comes from the rewrite (?do=), the body, or the path itself (/api/billing/<action>).
+  const body = readBody(req);
+  const fromPath = (String(req.url || "").split("?")[0].match(/\/api\/billing\/([a-z]+)/) || [])[1];
+  const action = (req.query && req.query.do) || body.action || fromPath || "";
+  const key = String(body.plan || "").toLowerCase();
   try {
     if (action === "checkout") return await checkout(req, res, user, key);
     if (action === "change") return await change(res, user, key);
@@ -121,6 +124,7 @@ export default async function handler(req, res) {
     if (action === "portal") return await portal(req, res, user);
     return send(res, 400, { error: "no_action" });
   } catch (e) {
+    console.error("billing", action, e);
     return send(res, 502, { error: e.code || "stripe_error", message: e.message || "" });
   }
 }

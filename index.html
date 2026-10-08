@@ -889,7 +889,7 @@ async function billingCall(action, body, btn){
   const label = btn.textContent;
   btn.disabled = true; btn.textContent = 'One moment…';
   try {
-    const r = await fetch('/api/billing/' + action, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + session.access_token }, body: JSON.stringify(body || {}) });
+    const r = await fetch('/api/billing/' + action, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + session.access_token }, body: JSON.stringify({ ...(body || {}), action }) });
     const d = await r.json().catch(() => ({}));
     if (!r.ok) throw d;
     return d;
@@ -898,7 +898,7 @@ async function billingCall(action, body, btn){
     planNote(code === 'payments_off' ? 'Payments are being switched on. Try again in a few minutes.'
       : code === 'has_plan' ? 'You already have a plan. Use Upgrade or Downgrade.'
       : code === 'stripe_error' && /card|payment/i.test(e.message || '') ? 'Your card was declined. Update it under Card & invoices and try again.'
-      : 'That didn’t work. Try again, or write to contact@shakeapp.today.', false);
+      : 'That didn’t work' + (e && e.message ? ': ' + e.message : (code ? ' (' + code + ')' : '')) + '. Try again, or write to contact@shakeapp.today.', false);
     btn.disabled = false; btn.textContent = label;
     return null;
   }
