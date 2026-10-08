@@ -35,8 +35,11 @@ export default async function handler(req, res) {
       });
     } else if (event.type === "invoice.paid" && o.billing_reason === "subscription_cycle") {
       // New month: fresh credits.
-      const sub = await stripe("subscriptions/" + o.subscription);
-      await setPlan((sub.metadata || {}).user_id, { credits_used: 0 });
+      // Newer Stripe API versions moved the subscription under invoice.parent.
+      const details = (o.parent && o.parent.subscription_details) || {};
+      const subId = o.subscription || details.subscription;
+      const meta = details.metadata && details.metadata.user_id ? details.metadata : subId ? (await stripe("subscriptions/" + subId)).metadata : {};
+      await setPlan((meta || {}).user_id, { credits_used: 0 });
     } else if (event.type === "customer.subscription.updated") {
       const key = (o.metadata || {}).plan;
       const active = o.status === "active" || o.status === "trialing";
