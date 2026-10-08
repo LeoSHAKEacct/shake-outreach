@@ -644,6 +644,20 @@ document.getElementById('authForm').addEventListener('submit', async e => {
   btn.disabled = true; st.className = 'status'; st.textContent = 'One moment…';
   try {
     if (authMode === 'up') {
+      let direct = null;
+      try {
+        const r = await fetch('/api/signup', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, password }) });
+        direct = { status: r.status, body: await r.json().catch(() => ({})) };
+      } catch {}
+      if (direct && direct.status === 200) {
+        const { error } = await sb.auth.signInWithPassword({ email, password });
+        if (error) throw error;
+        closeAuth(); return;
+      }
+      if (direct && direct.body.error === 'exists') { setAuthMode('in', 'You already have an account with this email. Sign in below.'); document.getElementById('authEmail').value = email; return; }
+      if (direct && direct.body.error === 'bad_password') throw new Error('Use a password with at least 6 characters.');
+      if (direct && direct.body.error === 'bad_email') throw new Error('That email address doesn’t look right.');
+      if (direct && direct.body.error === 'rate_limited') throw new Error('Too many sign-ups from here. Try again in a few minutes.');
       const { data, error } = await sb.auth.signUp({ email, password, options: { emailRedirectTo: location.origin } });
       if (error) throw error;
       if (data.session) { closeAuth(); }
