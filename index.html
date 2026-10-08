@@ -547,7 +547,7 @@ footer{padding:50px 0 40px;color:var(--muted);font-size:.88rem}
 
 <script>
 // ---- accounts (Supabase) ----
-let sb = null, session = null, authOn = false, authMode = 'up';
+let sb = null, session = null, authOn = false, authMode = 'up', googleOn = false;
 const SUPABASE_JS = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js';
 
 function loadScript(src){
@@ -573,9 +573,9 @@ function setAuthMode(m, note){
   document.getElementById('tabUp').classList.toggle('on', m === 'up');
   document.getElementById('tabIn').classList.toggle('on', m === 'in');
   document.getElementById('authTabs').hidden = m === 'reset';
-  // Google sign-in stays hidden until Shake Outreach has its own Supabase project + Google client
-  document.getElementById('googleBtn').hidden = true;
-  document.getElementById('orLine').hidden = true;
+  // Google button shows only when the Google provider is switched on in Supabase
+  document.getElementById('googleBtn').hidden = !googleOn || m === 'reset';
+  document.getElementById('orLine').hidden = !googleOn || m === 'reset';
   document.getElementById('emailField').hidden = m === 'reset';
   document.getElementById('authEmail').required = m !== 'reset';
   document.getElementById('forgotBtn').hidden = m !== 'in';
@@ -596,6 +596,11 @@ async function initAuth(){
   if (!c || !c.supabaseUrl || !c.supabaseAnonKey) return;
   try { await loadScript(SUPABASE_JS); } catch { return; }
   sb = window.supabase.createClient(c.supabaseUrl, c.supabaseAnonKey);
+  try {
+    const r = await fetch(c.supabaseUrl.replace(/\/$/, '') + '/auth/v1/settings', { headers: { apikey: c.supabaseAnonKey } });
+    const st = r.ok ? await r.json() : {};
+    googleOn = !!(st.external && st.external.google);
+  } catch {}
   authOn = true;
   const { data } = await sb.auth.getSession();
   session = data.session;
