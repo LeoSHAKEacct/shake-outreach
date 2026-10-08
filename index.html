@@ -315,9 +315,7 @@ footer{margin-top:auto;padding:28px 0 24px;color:var(--muted);font-size:.88rem}
 .action-card{max-width:660px;margin:40px auto 0;border:1px solid var(--line);border-radius:18px;box-shadow:var(--shadow);background:var(--card);text-align:left;overflow:hidden}
 .env{position:relative;padding:62px 30px 26px;display:grid;gap:16px;font-size:.98rem;color:var(--ink2)}
 .env-flap{position:absolute;inset:0 0 auto 0;height:40px;background:var(--bg);clip-path:polygon(0 0,100% 0,50% 100%)}
-.env-stamp{position:absolute;top:14px;right:16px;border:1px solid var(--line);color:var(--accent);border-radius:6px;padding:4px 7px;text-align:center;font:600 .85rem Inter,sans-serif;line-height:1}
-.env-stamp small{display:block;font-size:.55rem;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-top:2px}
-.env h3{font-family:"Instrument Serif",Georgia,serif;font-weight:400;font-size:1.9rem;line-height:1.1;color:var(--ink);padding-right:70px}
+.env h3{font-family:"Instrument Serif",Georgia,serif;font-weight:400;font-size:1.9rem;line-height:1.1;color:var(--ink);}
 .env dl{display:grid;grid-template-columns:auto 1fr;gap:10px 18px}
 .env dt{font-size:.72rem;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-weight:600;padding-top:3px}
 .env dd{min-width:0;line-height:1.5}
@@ -1233,13 +1231,11 @@ function renderAnalysis(){
   $('actionCard').replaceChildren(); $('actionCard').hidden = !real || $('demo').hidden;
   let d = $('segDetail');
   if (real) {
-    // Drawn as an envelope: flap, stamp with the fit score, everything written inside.
+    // Drawn as a simple envelope: a soft flap, everything written inside.
     d = document.createElement('div'); d.className = 'env';
     const flap = document.createElement('div'); flap.className = 'env-flap';
-    const stamp = document.createElement('div'); stamp.className = 'env-stamp'; stamp.textContent = sg.fit + '%';
-    const sm = document.createElement('small'); sm.textContent = 'fit'; stamp.append(sm);
     const h = document.createElement('h3'); h.textContent = sg.name;
-    d.append(flap, stamp, h);
+    d.append(flap, h);
     $('actionCard').append(d);
   }
   const dl = document.createElement('dl');
