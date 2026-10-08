@@ -22,7 +22,8 @@
 *{box-sizing:border-box;margin:0;padding:0}
 [hidden]{display:none!important}
 html{scroll-behavior:smooth}
-body{background:var(--bg);color:var(--ink);font-family:Inter,system-ui,sans-serif;line-height:1.55;-webkit-font-smoothing:antialiased;overflow-x:hidden}
+body{background:var(--bg);color:var(--ink);font-family:Inter,system-ui,sans-serif;line-height:1.55;-webkit-font-smoothing:antialiased;overflow-x:hidden;min-height:100vh;display:flex;flex-direction:column}
+main{flex:1 0 auto}
 a{color:inherit;text-decoration:none}
 .wrap{max-width:1160px;margin:0 auto;padding:0 20px}
 .serif{font-family:"Instrument Serif",Georgia,serif;font-weight:400}
@@ -246,7 +247,7 @@ details p{color:var(--ink2);margin-top:12px}
 .cta h2{position:relative}
 .cta .lead{color:var(--inv-muted);position:relative;margin:18px auto 0}
 .cta .try{position:relative;box-shadow:none}
-footer{padding:50px 0 40px;color:var(--muted);font-size:.88rem}
+footer{margin-top:auto;padding:28px 0 24px;color:var(--muted);font-size:.88rem}
 .foot{display:flex;justify-content:space-between;gap:20px;flex-wrap:wrap;align-items:center}
 .foot nav{display:flex;gap:22px;flex-wrap:wrap}
 .foot a:hover{color:var(--ink)}
@@ -348,7 +349,7 @@ footer{padding:50px 0 40px;color:var(--muted);font-size:.88rem}
   <div class="wrap">
     <div class="app-head app-only">
       <h2 id="appHello">Hi there 👋</h2>
-      <p class="lead">Paste your website; we do the rest.</p>
+      <p class="lead">Paste your website, we do the rest.</p>
     </div>
     <span class="pill mkt"><b>LIVE</b> Try it on your own website below</span>
     <p class="slogan mkt">Shake your money making.</p>
@@ -606,7 +607,6 @@ footer{padding:50px 0 40px;color:var(--muted);font-size:.88rem}
 
 <footer>
   <div class="wrap foot">
-    <a href="#" class="logo" aria-label="Shake Outreach home"><span class="logo-mark" aria-hidden="true">🤝</span><span class="wordmark">Shake<span>Outreach</span></span></a>
     <nav><a href="#how">How it works</a><a href="#faq">FAQ</a><a href="mailto:contact@shakeapp.today">contact@shakeapp.today</a></nav>
     <span>© <span id="yr"></span> Shakeapp Inc.</span>
   </div>
@@ -1259,7 +1259,7 @@ renderAnalysis(); setMode();
 if (!window.claude) {
   initAuth();
   fetch('/api/health').then(r => r.ok ? r.json() : null).then(h => {
-    if (h && h.ai) { backend = true; setMode(); $('runStatus').textContent = 'Takes about 20 seconds. We read your homepage first.'; }
+    if (h && h.ai) { backend = true; setMode(); $('runStatus').textContent = 'Takes about 20 seconds.'; }
     else if (h) { $('runStatus').textContent = 'Preview mode: the AI isn’t switched on yet, so you’ll see example results.'; }
   }).catch(() => {});
 }
