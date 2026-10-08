@@ -30,23 +30,25 @@ export default async function handler(req, res) {
       const key = (o.metadata || {}).plan;
       if (!PLANS[key]) return send(res, 200, { ok: true });
       await setPlan(o.client_reference_id || (o.metadata || {}).user_id, {
-        plan: key, plan_credits: PLANS[key].credits, credits_used: 0,
+        plan: key, plan_credits: PLANS[key].credits, credits_used: 0, pending_plan: null, cancel_at: null,
         stripe_customer: o.customer, stripe_sub: o.subscription,
       });
     } else if (event.type === "invoice.paid" && o.billing_reason === "subscription_cycle") {
-      // New month: fresh credits.
-      // Newer Stripe API versions moved the subscription under invoice.parent.
+      // New month: the plan on the subscription now (a downgrade lands here) and fresh credits.
       const details = (o.parent && o.parent.subscription_details) || {};
-      const subId = o.subscription || details.subscription;
-      const meta = details.metadata && details.metadata.user_id ? details.metadata : subId ? (await stripe("subscriptions/" + subId)).metadata : {};
-      await setPlan((meta || {}).user_id, { credits_used: 0 });
+      const sub = await stripe("subscriptions/" + (o.subscription || details.subscription));
+      const meta = sub.metadata || {};
+      const end = sub.current_period_end || (sub.items && sub.items.data[0] && sub.items.data[0].current_period_end) || null;
+      const patch = { credits_used: 0, pending_plan: null, renews_at: end };
+      if (PLANS[meta.plan]) Object.assign(patch, { plan: meta.plan, plan_credits: PLANS[meta.plan].credits });
+      await setPlan(meta.user_id, patch);
     } else if (event.type === "customer.subscription.updated") {
-      const key = (o.metadata || {}).plan;
-      const active = o.status === "active" || o.status === "trialing";
-      if (!active) await setPlan((o.metadata || {}).user_id, { plan: "trial", plan_credits: null });
-      else if (PLANS[key]) await setPlan((o.metadata || {}).user_id, { plan: key, plan_credits: PLANS[key].credits });
+      // Plan changes are applied by /api/billing; here we only catch failed or unpaid subscriptions.
+      if (!["active", "trialing", "past_due"].includes(o.status)) {
+        await setPlan((o.metadata || {}).user_id, { plan: "trial", plan_credits: null, pending_plan: null, cancel_at: null });
+      }
     } else if (event.type === "customer.subscription.deleted") {
-      await setPlan((o.metadata || {}).user_id, { plan: "trial", plan_credits: null, stripe_sub: null });
+      await setPlan((o.metadata || {}).user_id, { plan: "trial", plan_credits: null, stripe_sub: null, pending_plan: null, cancel_at: null, renews_at: null });
     }
   } catch {
     return send(res, 500, { error: "update_failed" }); // Stripe retries

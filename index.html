@@ -165,9 +165,12 @@ header.scrolled{border-color:var(--line)}
 .profile-row{display:flex;justify-content:space-between;gap:12px;font-size:.92rem;border-top:1px solid var(--line);padding-top:12px}
 .profile-row span:first-child{color:var(--muted)}
 .profile-row span:last-child{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.inline{display:flex;gap:8px}
-.inline input{flex:1;min-width:0}
-.inline .btn{padding:10px 16px;font-size:.88rem}
+.inline{display:flex;gap:8px;align-items:center}
+.inline input{flex:1;min-width:0;height:38px;padding:6px 12px}
+.inline .btn{padding:0 16px;height:38px;font-size:.88rem}
+.plan-manage{display:flex;flex-wrap:wrap;align-items:center;gap:10px 12px;border-top:1px solid var(--line);padding-top:14px;font-size:.92rem}
+.plan-manage .grow{flex:1;min-width:200px}
+.plan-manage .btn{padding:0 14px;height:36px;font-size:.85rem}
 .modal{position:fixed;inset:0;z-index:100;background:rgba(10,10,14,.55);display:grid;place-items:center;padding:16px;backdrop-filter:blur(4px)}
 .modal-card{position:relative;width:100%;max-width:420px;background:var(--card);border:1px solid var(--line);border-radius:22px;box-shadow:var(--shadow);padding:28px;display:grid;gap:14px}
 .modal-card h3{font-family:"Instrument Serif",Georgia,serif;font-weight:400;font-size:1.9rem;line-height:1.1}
@@ -718,7 +721,12 @@ footer{margin-top:auto;padding:28px 0 24px;color:var(--muted);font-size:.88rem}
       </div>
       <p class="muted">Finding customer types and writing emails is free. You only pay for leads that come with an email, so <span id="billCovers">$50 covers about 500 leads</span>.</p>
       <p class="status" id="billNote"></p>
-      <button class="btn btn-ghost" type="button" id="manageBilling" hidden>Manage billing</button>
+      <div class="plan-manage" id="planManage" hidden>
+        <span class="grow" id="planLine"></span>
+        <button class="btn btn-ghost" type="button" id="resumePlan" hidden>Keep my plan</button>
+        <button class="btn btn-ghost" type="button" id="manageBilling">Card &amp; invoices</button>
+        <button class="btn btn-ghost" type="button" id="cancelPlan">Cancel plan</button>
+      </div>
     </div>
     <h3 class="page-sub">Plans</h3>
     <div class="plans plans-page">
@@ -783,7 +791,7 @@ function fillProfile(){
   if (document.activeElement !== document.getElementById('profileName')) document.getElementById('profileName').value = firstName(u);
   document.getElementById('profileEmail').textContent = u.email;
   document.getElementById('profileGmail').textContent = acct.gmail || 'Not connected';
-  document.getElementById('profilePlan').textContent = acct.plan === 'trial' ? 'Free trial' : acct.plan;
+  document.getElementById('profilePlan').textContent = acct.paid ? planName(acct.plan) : 'Free trial';
   document.getElementById('profileCredits').textContent = money(acct.credits_left);
 }
 function closeProfile(){ if (location.hash === '#profile') location.hash = ''; }
@@ -811,12 +819,7 @@ function renderAccount(){
   document.getElementById('billKind').textContent = acct.paid ? 'monthly ' + plan.charAt(0).toUpperCase() + plan.slice(1) + ' credit' : 'free trial credit';
   document.getElementById('billNote').textContent = '';
   document.getElementById('billCovers').textContent = money(acct.start_credits).replace('.00', '') + ' covers about ' + Math.round(acct.start_credits / acct.lead_price).toLocaleString('en-US') + ' leads';
-  document.getElementById('manageBilling').hidden = !acct.billing;
-  document.querySelectorAll('.activate').forEach(b => {
-    const on = acct.paid && b.dataset.plan.toLowerCase() === plan;
-    b.textContent = on ? 'Your plan ✓' : acct.paid ? 'Switch to ' + b.dataset.plan : 'Activate';
-    b.disabled = on;
-  });
+  renderPlans();
   if (session) fillProfile();
   if (typeof renderRecipients === 'function' && typeof current !== 'undefined') renderRecipients();
 }
@@ -834,28 +837,97 @@ function route(){
 addEventListener('hashchange', route);
 document.querySelectorAll('[data-back]').forEach(b => b.addEventListener('click', () => { location.hash = ''; }));
 document.getElementById('creditChip').addEventListener('click', () => { location.hash = 'billing'; });
-// Paid plans go through Stripe Checkout; switching or cancelling goes through the Stripe portal.
-async function billingLink(path, body, btn){
-  const n = document.getElementById('planNote');
+// Plans: the first purchase goes through Stripe Checkout. After that everything happens here:
+// upgrades are charged the difference now, downgrades and cancelling take effect at the next renewal.
+const RANK = { trial: 0, starter: 1, growth: 2, pro: 3 };
+const planName = k => { k = String(k || ''); return k.charAt(0).toUpperCase() + k.slice(1).toLowerCase(); };
+const day = t => t ? new Date(t * 1000).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : 'your next renewal';
+let armed = null;
+function planNote(text, ok){ const n = document.getElementById('planNote'); n.className = ok ? 'status ok' : 'status err'; n.textContent = text; }
+function renderPlans(){
+  armed = null;
+  const now = String(acct.plan || 'trial').toLowerCase();
+  document.getElementById('planManage').hidden = !acct.paid;
+  if (acct.paid) {
+    document.getElementById('planLine').textContent =
+      acct.cancel_at ? planName(now) + ' ends on ' + day(acct.cancel_at) + '. After that you’re back on the free trial.'
+      : acct.pending_plan ? planName(now) + ' until ' + day(acct.renews_at) + ', then ' + planName(acct.pending_plan) + ' at ' + money(PLAN_PRICE[acct.pending_plan]).replace('.00', '') + '/month.'
+      : planName(now) + (acct.renews_at ? ' · renews ' + day(acct.renews_at) : ' · renews monthly');
+    document.getElementById('resumePlan').hidden = !acct.cancel_at;
+    document.getElementById('cancelPlan').hidden = Boolean(acct.cancel_at);
+    document.getElementById('cancelPlan').textContent = 'Cancel plan';
+  }
+  document.querySelectorAll('.activate').forEach(b => {
+    const k = b.dataset.plan.toLowerCase();
+    b.disabled = false;
+    if (!acct.paid) b.textContent = 'Activate';
+    else if (k === now) { b.textContent = acct.pending_plan ? 'Keep ' + planName(k) : 'Your plan ✓'; b.disabled = !acct.pending_plan; }
+    else if (k === acct.pending_plan) { b.textContent = 'Starts ' + day(acct.renews_at); b.disabled = true; }
+    else b.textContent = RANK[k] > RANK[now] ? 'Upgrade' : 'Downgrade';
+  });
+}
+const PLAN_PRICE = { starter: 50, growth: 88, pro: 150 };
+async function billingCall(action, body, btn){
   const label = btn.textContent;
-  btn.disabled = true; btn.textContent = 'Opening…'; n.textContent = '';
+  btn.disabled = true; btn.textContent = 'One moment…';
   try {
-    const r = await fetch('/api/' + path, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + session.access_token }, body: JSON.stringify(body) });
+    const r = await fetch('/api/billing/' + action, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + session.access_token }, body: JSON.stringify(body || {}) });
     const d = await r.json().catch(() => ({}));
-    if (d.url) { location.href = d.url; return; }
-    throw d.error;
+    if (!r.ok) throw d;
+    return d;
   } catch (e) {
-    n.className = 'status err';
-    n.textContent = e === 'payments_off' ? 'Payments are being switched on. Try again in a few minutes or write to contact@shakeapp.today.' : 'Couldn’t open checkout. Try again.';
+    const code = e && e.error;
+    planNote(code === 'payments_off' ? 'Payments are being switched on. Try again in a few minutes.'
+      : code === 'has_plan' ? 'You already have a plan. Use Upgrade or Downgrade.'
+      : code === 'stripe_error' && /card|payment/i.test(e.message || '') ? 'Your card was declined. Update it under Card & invoices and try again.'
+      : 'That didn’t work. Try again, or write to contact@shakeapp.today.', false);
     btn.disabled = false; btn.textContent = label;
+    return null;
   }
 }
-document.querySelectorAll('.activate').forEach(b => b.addEventListener('click', () => {
+// Two taps for anything that changes a bill: the first explains, the second does it.
+function confirmTap(btn, text, label){
+  if (armed === btn) return true;
+  renderPlans(); armed = btn;
+  btn.textContent = label; planNote(text, true);
+  return false;
+}
+document.querySelectorAll('.activate').forEach(b => b.addEventListener('click', async () => {
   if (!session) { openAuth('up'); return; }
-  if (acct.billing) billingLink('portal', {}, b);
-  else billingLink('checkout', { plan: b.dataset.plan.toLowerCase() }, b);
+  const k = b.dataset.plan.toLowerCase(), now = String(acct.plan || 'trial').toLowerCase();
+  if (!acct.paid) {
+    const d = await billingCall('checkout', { plan: k }, b);
+    if (d && d.url) location.href = d.url;
+    return;
+  }
+  if (k !== now) {
+    const up = RANK[k] > RANK[now];
+    const text = up
+      ? 'Upgrade to ' + planName(k) + ' now: you pay only the difference for the rest of this month, and your credit goes up today.'
+      : 'Downgrade to ' + planName(k) + ': no payment now. You keep ' + planName(now) + ' until ' + day(acct.renews_at) + ', then pay ' + money(PLAN_PRICE[k]).replace('.00', '') + '/month.';
+    if (!confirmTap(b, text, up ? 'Confirm upgrade' : 'Confirm downgrade')) return;
+  }
+  const d = await billingCall('change', { plan: k }, b);
+  if (!d) return;
+  await loadAccount();
+  planNote(d.done === 'upgraded' ? 'You’re on ' + planName(k) + ' now. 🎉'
+    : d.done === 'downgraded' ? 'Done. ' + planName(k) + ' starts on ' + day(d.at) + '. Nothing to pay today.'
+    : 'You’re staying on ' + planName(k) + '.', true);
 }));
-document.getElementById('manageBilling').addEventListener('click', e => billingLink('portal', {}, e.currentTarget));
+document.getElementById('cancelPlan').addEventListener('click', async e => {
+  const b = e.currentTarget;
+  if (!confirmTap(b, 'Cancel ' + planName(acct.plan) + '? You keep it until ' + day(acct.renews_at) + ' and won’t be charged again.', 'Confirm cancel')) return;
+  const d = await billingCall('cancel', {}, b);
+  if (d) { await loadAccount(); planNote('Cancelled. Your plan stays on until ' + day(d.at) + '.', true); }
+});
+document.getElementById('resumePlan').addEventListener('click', async e => {
+  const d = await billingCall('resume', {}, e.currentTarget);
+  if (d) { await loadAccount(); planNote('Your plan will keep renewing.', true); }
+});
+document.getElementById('manageBilling').addEventListener('click', async e => {
+  const d = await billingCall('portal', {}, e.currentTarget);
+  if (d && d.url) location.href = d.url;
+});
 
 // An "active" search stays open for the rest of this login (sessionStorage);
 // past searches are kept per user in this browser.
