@@ -437,7 +437,7 @@ footer{margin-top:auto;padding:28px 0 24px;color:var(--muted);font-size:.88rem}
     <div class="action-card app-only" id="actionCard" hidden></div>
 
     <div class="demo" id="demo" hidden>
-      <div class="demo-bar"><i></i><i></i><i></i><span class="url" id="demoUrl">app.shakeoutreach.com/new?site=bikinifactory.com</span><span class="mode" id="modeTag">Preview</span></div>
+      <div class="demo-bar"><i></i><i></i><i></i><span class="url" id="demoUrl">myleads.shakeapp.today/?site=bikinifactory.com</span><span class="mode" id="modeTag">Preview</span></div>
       <div class="demo-body">
         <div class="demo-left">
           <div class="step done"><span class="dot"></span><span>Understanding your business</span></div>
@@ -1198,7 +1198,7 @@ function setMode(){
 
 function renderAnalysis(){
   $('summaryText').textContent = current.summary;
-  $('demoUrl').textContent = 'app.shakeoutreach.com/new?site=' + current.site;
+  $('demoUrl').textContent = 'myleads.shakeapp.today/?site=' + current.site;
   $('foundCount').textContent = current.example ? 'Example' : current.segments.length + (current.segments.length === 1 ? ' customer type' : ' customer types');
   const tb = document.querySelector('#fitTable tbody');
   tb.replaceChildren();
@@ -1590,7 +1590,7 @@ async function analyze(){
   $('demo').hidden = false; $('writer').hidden = true;
   $('demo').scrollIntoView({ behavior: 'smooth', block: 'start' });
   setRunning(true);
-  $('demoUrl').textContent = 'app.shakeoutreach.com/new?site=' + site;
+  $('demoUrl').textContent = 'myleads.shakeapp.today/?site=' + site;
   $('summaryText').textContent = 'Working on ' + site + '…';
   $('foundCount').textContent = 'thinking…';
   setSteps(0, true);
