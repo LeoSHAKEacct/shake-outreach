@@ -11,10 +11,11 @@ const SCHEMA = {
       items: {
         type: "object",
         additionalProperties: false,
-        required: ["name", "fit", "buyer", "why", "where", "angle"],
+        required: ["name", "fit", "buyer", "why", "where", "angle", "subject", "body"],
         properties: {
           name: { type: "string" }, fit: { type: "integer" }, buyer: { type: "string" },
-          why: { type: "string" }, where: { type: "string" }, angle: { type: "string" }
+          why: { type: "string" }, where: { type: "string" }, angle: { type: "string" },
+          subject: { type: "string" }, body: { type: "string" }
         }
       }
     }
@@ -29,7 +30,7 @@ export default async function handler(req, res) {
   const anon = !user;
   if (rateLimited(req, user, anon ? 5 : 20)) return send(res, 429, { error: "rate_limited" });
   const b = readBody(req);
-  const site = clip(b.site, 200), offer = clip(b.offer, 500);
+  const site = clip(b.site, 200), offer = clip(b.offer, 500), sender = clip(b.sender, 60);
   if (!site) return send(res, 400, { error: "no_site" });
 
   const pageText = await fetchSiteText(site);
@@ -45,6 +46,9 @@ ${pageText
 Find the 5 customer segments most likely to buy from this business.
 - summary: one plain sentence on what the business does and for whom.
 - For each segment: name (2-4 words), fit (integer 0-100), buyer (job title of the person to email), why (one short sentence on why they buy), where (where to find these prospects and their contacts, one short phrase), angle (the hook to open the email with, one short sentence).
+- Also for each segment, a ready-to-send cold email from this business to the decision-maker in that segment:
+  subject: under 7 words.
+  body: plain text with line breaks, under 90 words. Start with "Hi [First name]," exactly. Open with something relevant to that kind of business, say concretely what this business offers them, end with one low-pressure ask (a short call or a reply). Sound like a person, no buzzwords, no exclamation marks. Sign off with ${sender ? `"${sender}"` : "the business's name"}.
 Sort segments by fit, highest first.`;
 
   try {

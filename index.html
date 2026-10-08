@@ -348,7 +348,7 @@ footer{padding:50px 0 40px;color:var(--muted);font-size:.88rem}
     <div class="demo writer" id="writer" hidden>
       <div class="demo-bar"><span style="font-weight:600;color:var(--ink)">Your email</span></div>
       <div class="mailbox">
-        <div class="field"><label for="pEmail">To</label><input id="pEmail" type="email" value="maria@coastlineswim.com" autocomplete="off"></div>
+        <div class="field"><label for="pEmail">To</label><input id="pEmail" type="email" value="maria@coastlineswim.com" placeholder="their@email.com" autocomplete="off"></div>
         <div class="field"><label for="eSubject">Subject</label><input id="eSubject" type="text"></div>
         <div class="field"><label for="eBody">Email</label><textarea id="eBody" class="body-edit"></textarea></div>
         <div class="actions">
@@ -855,6 +855,10 @@ function renderAnalysis(){
     tb.append(tr);
   });
   const sg = current.segments[selected];
+  if (!current.example && sg.body) {
+    showEmail({ subject: sg.subject, body: sg.body });
+    $('pEmail').value = '';
+  }
   const d = $('segDetail'); d.replaceChildren();
   const dl = document.createElement('dl');
   [['Email', sg.buyer], ['Why', sg.why], ['Find them', sg.where], ['Lead with', sg.angle]].forEach(([k, v]) => {
@@ -869,6 +873,10 @@ function renderAnalysis(){
 
 const STEPS = [...document.querySelectorAll('#demo .step')];
 function setSteps(n, active){ STEPS.forEach((el, i) => el.className = 'step' + (i < n ? ' done' : (i === n && active ? ' active' : ''))); }
+
+function senderName(){
+  return session ? firstName(session.user) : '';
+}
 
 function cleanSite(raw){ return (raw || '').trim().replace(/^https?:\/\//i, '').replace(/^www\./i, '').replace(/\/.*$/, ''); }
 
@@ -927,19 +935,20 @@ What they sell (from the owner): ${offer || 'not given. Infer it from the domain
 
 You cannot browse the web. Work only from the information above.
 
-Find the 5 customer segments most likely to buy from this business. Reply with only JSON in exactly this shape:
+Find the 5 customer segments most likely to buy from this business. For each, also write a ready-to-send cold email (subject under 7 words; body under 90 words, plain text with \n line breaks, starting with "Hi [First name],", one low-pressure ask, signed by ${senderName() || "the business"}). Reply with only JSON in exactly this shape:
 {"summary":"one plain sentence on what the business does and for whom",
- "segments":[{"name":"segment name, 2-4 words","fit":92,"buyer":"job title of the person to email","why":"one short sentence on why they buy","where":"where to find these prospects and their contacts, one short phrase","angle":"the hook to open the email with, one short sentence"}]}
+ "segments":[{"name":"segment name, 2-4 words","fit":92,"buyer":"job title of the person to email","why":"one short sentence on why they buy","where":"where to find these prospects and their contacts, one short phrase","angle":"the hook to open the email with, one short sentence","subject":"...","body":"..."}]}
 Sort segments by fit, highest first. fit is an integer from 0 to 100.`;
   try {
-    const r = sample ? await sample.json(prompt, { signal: analyzeCtl.signal }) : await api('analyze', { site, offer }, analyzeCtl.signal);
+    const r = sample ? await sample.json(prompt, { signal: analyzeCtl.signal }) : await api('analyze', { site, offer, sender: senderName() }, analyzeCtl.signal);
     if (!r || !Array.isArray(r.segments) || !r.segments.length) throw { code: 'invalid_json' };
     current = {
       site, offer, example: false,
       summary: String(r.summary || ''),
       segments: r.segments.slice(0, 6).map(x => ({
         name: String(x.name || 'Segment'), fit: Math.round(Number(x.fit) || 0), buyer: String(x.buyer || ''),
-        why: String(x.why || ''), where: String(x.where || ''), angle: String(x.angle || '')
+        why: String(x.why || ''), where: String(x.where || ''), angle: String(x.angle || ''),
+        subject: String(x.subject || ''), body: String(x.body || '')
       }))
     };
     selected = 0; store.set('analysis', current); store.set('selected', 0);
