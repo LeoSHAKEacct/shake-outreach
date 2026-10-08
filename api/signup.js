@@ -12,6 +12,7 @@ export default async function handler(req, res) {
 
   const b = readBody(req);
   const email = clip(b.email, 200).toLowerCase(), password = String(b.password || "");
+  const name = clip(b.name, 80);
   if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return send(res, 400, { error: "bad_email" });
   if (password.length < 6 || password.length > 200) return send(res, 400, { error: "bad_password" });
 
@@ -21,7 +22,7 @@ export default async function handler(req, res) {
   try {
     r = await fetch(SUPABASE_URL.replace(/\/$/, "") + "/auth/v1/admin/users", {
       method: "POST", headers, signal: AbortSignal.timeout(8000),
-      body: JSON.stringify({ email, password, email_confirm: true, user_metadata: { app: "shake-outreach" } }),
+      body: JSON.stringify({ email, password, email_confirm: true, user_metadata: { app: "shake-outreach", ...(name ? { name } : {}) } }),
     });
   } catch { return send(res, 502, { error: "upstream_error" }); }
   if (r.ok) return send(res, 200, { ok: true });
