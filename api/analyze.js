@@ -11,11 +11,11 @@ const SCHEMA = {
       items: {
         type: "object",
         additionalProperties: false,
-        required: ["name", "fit", "buyer", "why", "where", "angle", "subject", "body"],
+        required: ["name", "fit", "buyer", "why", "where", "angle", "search", "subject", "body"],
         properties: {
           name: { type: "string" }, fit: { type: "integer" }, buyer: { type: "string" },
           why: { type: "string" }, where: { type: "string" }, angle: { type: "string" },
-          subject: { type: "string" }, body: { type: "string" }
+          search: { type: "string" }, subject: { type: "string" }, body: { type: "string" }
         }
       }
     }
@@ -46,6 +46,7 @@ ${pageText
 Find the 5 customer segments most likely to buy from this business.
 - summary: one plain sentence on what the business does and for whom.
 - For each segment: name (2-4 words), fit (integer 0-100), buyer (job title of the person to email), why (one short sentence on why they buy), where (where to find these prospects and their contacts, one short phrase), angle (the hook to open the email with, one short sentence).
+- search: a short Google Maps search term (2-3 words) that finds these businesses, e.g. "dental clinic" or "surf shop", in the language of their market.
 - Also for each segment, a ready-to-send cold email from this business to the decision-maker in that segment:
   subject: under 7 words.
   body: plain text with line breaks, under 90 words. Start with "Hi [First name]," exactly. Open with something relevant to that kind of business, say concretely what this business offers them, end with one low-pressure ask (a short call or a reply). Sound like a person, no buzzwords, no exclamation marks. Sign off with ${sender ? `"${sender}"` : "the business's name"}.

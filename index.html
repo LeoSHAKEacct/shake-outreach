@@ -196,6 +196,22 @@ header.scrolled{border-color:var(--line)}
 .plan .badge{align-self:flex-start;background:var(--accent);color:#fff;font-size:.72rem;font-weight:600;padding:4px 10px;border-radius:999px;margin-bottom:10px}
 .beta-note{margin:22px auto 0;text-align:center;font-size:.9rem;color:var(--muted)}
 
+/* real leads */
+.lead-find{display:flex;gap:8px;flex-wrap:wrap;margin-top:6px}
+.lead-find input{flex:1;min-width:160px;border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:999px;padding:9px 14px;font:400 .9rem Inter,sans-serif;outline:0}
+.lead-find input:focus{border-color:var(--accent)}
+.lead-find .btn{padding:9px 16px;font-size:.85rem}
+.leads{margin-top:20px;max-width:980px;text-align:left}
+.leads-body{padding:18px 24px 24px;display:grid;gap:12px}
+.leads-scroll{overflow-x:auto}
+.ltbl{width:100%;border-collapse:collapse;font-size:.9rem}
+.ltbl th{font-size:.72rem;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-weight:600;text-align:left;padding:0 10px 10px 0;white-space:nowrap}
+.ltbl td{padding:11px 10px 11px 0;border-top:1px solid var(--line);vertical-align:top}
+.ltbl td a{color:var(--accent)}
+.ltbl td small{display:block;color:var(--muted);font-size:.8rem}
+.ltbl .btn{padding:7px 14px;font-size:.82rem;white-space:nowrap}
+.ltbl .none{color:var(--muted)}
+
 /* past searches */
 .history{max-width:560px;margin:28px auto 0;text-align:left}
 .history-title{font-size:.72rem;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);font-weight:600;margin-bottom:10px}
@@ -368,6 +384,14 @@ footer{padding:50px 0 40px;color:var(--muted);font-size:.88rem}
           </table>
           <div class="seg-detail" id="segDetail"></div>
         </div>
+      </div>
+    </div>
+
+    <div class="demo leads" id="leadsBox" hidden>
+      <div class="demo-bar"><span style="font-weight:600;color:var(--ink)" id="leadsTitle">Real leads</span><span class="mode" id="leadsCount"></span></div>
+      <div class="leads-body">
+        <p class="status" id="leadsStatus"></p>
+        <div class="leads-scroll"><table class="ltbl" id="leadsTable"><thead><tr><th>Business</th><th>Email</th><th>Phone</th><th></th></tr></thead><tbody></tbody></table></div>
       </div>
     </div>
 
@@ -941,6 +965,109 @@ function renderAnalysis(){
   const go = document.createElement('a'); go.href = '#writer'; go.className = 'btn btn-dark'; go.style.cssText = 'justify-self:start;padding:9px 16px;font-size:.85rem';
   go.textContent = current.example ? 'See the example email ↓' : 'See the email ↓';
   d.append(dl, go);
+  if (!current.example) {
+    const f = document.createElement('div'); f.className = 'lead-find';
+    const loc = document.createElement('input'); loc.id = 'leadLoc'; loc.type = 'text';
+    loc.placeholder = 'City or country, e.g. Bogotá, Colombia';
+    loc.value = store.get('loc', ''); loc.setAttribute('aria-label', 'Where to look for leads');
+    const b = document.createElement('button'); b.type = 'button'; b.className = 'btn btn-accent'; b.id = 'leadBtn';
+    b.textContent = leadRun ? 'Finding 💸' : 'Find real leads';
+    b.disabled = !!leadRun;
+    b.addEventListener('click', findLeads);
+    loc.addEventListener('keydown', e => { if (e.key === 'Enter') findLeads(); });
+    f.append(loc, b); d.append(f);
+  }
+  renderLeads();
+}
+
+// ---- real leads (Google Maps via Apify) ----
+let leadRun = null;
+function leadsError(code){
+  switch (code) {
+    case 'missing_apify': return 'Lead search isn’t switched on yet: the site owner needs to add the Apify token in Vercel.';
+    case 'apify_credits': return 'The lead finder is out of credits. Try again later.';
+    case 'rate_limited': return 'Too many lead searches. Wait a few minutes and try again.';
+    case 'no_location': return 'Type a city or country first.';
+    case 'auth_required': return 'Sign in to find real leads.';
+    default: return 'Couldn’t get leads right now. Try again in a minute.';
+  }
+}
+async function leadsApi(method, pathOrBody){
+  const headers = { 'Content-Type': 'application/json' };
+  if (session) headers.Authorization = 'Bearer ' + session.access_token;
+  const r = method === 'GET'
+    ? await fetch('/api/leads?ticket=' + encodeURIComponent(pathOrBody), { headers })
+    : await fetch('/api/leads', { method: 'POST', headers, body: JSON.stringify(pathOrBody) });
+  const data = await r.json().catch(() => ({}));
+  if (!r.ok) throw { code: data.error || 'error' };
+  return data;
+}
+async function findLeads(){
+  if (leadRun) return;
+  if (!session) { openAuth('up', 'Create a free account to get real leads. You get $50 in credits.'); return; }
+  const loc = ($('leadLoc') && $('leadLoc').value.trim()) || '';
+  const segIndex = selected, sg = current.segments[segIndex];
+  if (!loc) { sg.leadsError = leadsError('no_location'); renderLeads(); $('leadLoc').focus(); return; }
+  store.set('loc', loc);
+  sg.leads = []; sg.leadsLoc = loc; sg.leadsError = '';
+  leadRun = { segIndex, msg: 'Finding 💸 real ' + sg.name.toLowerCase() + ' in ' + loc + '. This takes 1–3 minutes.' };
+  renderAnalysis();
+  try {
+    const { ticket } = await leadsApi('POST', { query: sg.search || sg.name, location: loc });
+    const started = Date.now();
+    while (true) {
+      await new Promise(r => setTimeout(r, 6000));
+      const res = await leadsApi('GET', ticket);
+      sg.leads = res.leads;
+      if (selected === segIndex) renderLeads();
+      if (['SUCCEEDED', 'FAILED', 'ABORTED', 'TIMED-OUT'].includes(res.status) || Date.now() - started > 6 * 60000) break;
+    }
+    store.set('analysis', current); saveToHistory(current);
+  } catch (e) {
+    sg.leadsError = leadsError(e && e.code);
+  } finally {
+    leadRun = null;
+    if (selected === segIndex) renderAnalysis();
+  }
+}
+function renderLeads(){
+  const sg = current.segments[selected];
+  const box = $('leadsBox'), tb = document.querySelector('#leadsTable tbody'), st = $('leadsStatus');
+  const running = !!(leadRun && leadRun.segIndex === selected);
+  const has = Array.isArray(sg.leads);
+  box.hidden = $('demo').hidden || !(has || running || sg.leadsError);
+  if (running) { st.className = 'status'; st.textContent = leadRun.msg; }
+  else if (sg.leadsError) { st.className = 'status err'; st.textContent = sg.leadsError; }
+  else if (has && sg.leads.length) { st.className = 'status ok'; st.textContent = 'Click “Email them” to write to a lead.'; }
+  else if (has) { st.className = 'status err'; st.textContent = 'No leads found there. Try a bigger city or a whole country.'; }
+  else st.textContent = '';
+  $('leadsTitle').textContent = 'Real leads · ' + sg.name + (sg.leadsLoc ? ' in ' + sg.leadsLoc : '');
+  const list = has ? sg.leads : [];
+  const withEmail = list.filter(l => l.email).length;
+  $('leadsCount').textContent = list.length ? list.length + ' found · ' + withEmail + ' with email' : '';
+  tb.replaceChildren();
+  list.forEach(l => {
+    const tr = document.createElement('tr');
+    const a = document.createElement('td');
+    if (l.website) { const link = document.createElement('a'); link.href = l.website; link.target = '_blank'; link.rel = 'noopener'; link.textContent = l.name; a.append(link); }
+    else a.textContent = l.name;
+    if (l.address) { const sm = document.createElement('small'); sm.textContent = l.address; a.append(sm); }
+    const e = document.createElement('td'); e.textContent = l.email || '—'; if (!l.email) e.className = 'none';
+    const p = document.createElement('td'); p.textContent = l.phone || '—'; if (!l.phone) p.className = 'none';
+    const act = document.createElement('td');
+    if (l.email) {
+      const b = document.createElement('button'); b.type = 'button'; b.className = 'btn btn-ghost'; b.textContent = 'Email them';
+      b.addEventListener('click', () => {
+        $('pEmail').value = l.email;
+        const body = (sg.body || $('eBody').value).replace('[First name]', l.name + ' team');
+        showEmail({ subject: sg.subject || $('eSubject').value, body });
+        $('writer').hidden = false;
+        $('writer').scrollIntoView({ behavior: 'smooth', block: 'start' });
+      });
+      act.append(b);
+    }
+    tr.append(a, e, p, act); tb.append(tr);
+  });
 }
 
 const STEPS = [...document.querySelectorAll('#demo .step')];
@@ -1009,7 +1136,7 @@ You cannot browse the web. Work only from the information above.
 
 Find the 5 customer segments most likely to buy from this business. For each, also write a ready-to-send cold email (subject under 7 words; body under 90 words, plain text with \n line breaks, starting with "Hi [First name],", one low-pressure ask, signed by ${senderName() || "the business"}). Reply with only JSON in exactly this shape:
 {"summary":"one plain sentence on what the business does and for whom",
- "segments":[{"name":"segment name, 2-4 words","fit":92,"buyer":"job title of the person to email","why":"one short sentence on why they buy","where":"where to find these prospects and their contacts, one short phrase","angle":"the hook to open the email with, one short sentence","subject":"...","body":"..."}]}
+ "segments":[{"name":"segment name, 2-4 words","fit":92,"buyer":"job title of the person to email","why":"one short sentence on why they buy","where":"where to find these prospects and their contacts, one short phrase","angle":"the hook to open the email with, one short sentence","search":"2-3 word Google Maps search term","subject":"...","body":"..."}]}
 Sort segments by fit, highest first. fit is an integer from 0 to 100.`;
   try {
     const r = sample ? await sample.json(prompt, { signal: analyzeCtl.signal }) : await api('analyze', { site, offer, sender: senderName() }, analyzeCtl.signal);
@@ -1020,7 +1147,7 @@ Sort segments by fit, highest first. fit is an integer from 0 to 100.`;
       segments: r.segments.slice(0, 6).map(x => ({
         name: String(x.name || 'Segment'), fit: Math.round(Number(x.fit) || 0), buyer: String(x.buyer || ''),
         why: String(x.why || ''), where: String(x.where || ''), angle: String(x.angle || ''),
-        subject: String(x.subject || ''), body: String(x.body || '')
+        subject: String(x.subject || ''), body: String(x.body || ''), search: String(x.search || '')
       }))
     };
     selected = 0; store.set('analysis', current); store.set('selected', 0);
