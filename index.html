@@ -171,12 +171,7 @@ header.scrolled{border-color:var(--line)}
 .linkish{background:none;border:0;padding:0;color:var(--accent);font:500 .86rem Inter,sans-serif;cursor:pointer;justify-self:start}
 .btn:focus-visible,.tabs button:focus-visible,.linkish:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 
-/* locked results + credits */
-.tbl tr.locked td{color:var(--muted)}
-.tbl tr.locked td:first-child::after{content:"  🔒";font-size:.8em}
-.tbl tr.locked .bar span{background:var(--line)}
-.unlock{margin-top:14px;background:var(--pop-soft);border-radius:14px;padding:14px 16px;display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap;font-size:.9rem;color:var(--ink)}
-.unlock .btn{padding:9px 16px;font-size:.85rem}
+/* credits */
 .credit-chip{font-size:.8rem;font-weight:600;background:var(--pop-soft);color:var(--ink);border-radius:999px;padding:5px 11px;white-space:nowrap}
 
 /* pricing */
@@ -641,7 +636,6 @@ async function initAuth(){
   session = data.session;
   sb.auth.onAuthStateChange((event, s) => {
     session = s; renderAuth();
-    if (event === 'SIGNED_IN' && current.preview && !analyzeCtl) { closeAuth(); $('site').value = current.site; $('offer').value = current.offer || ''; analyze(); }
     if (event === 'PASSWORD_RECOVERY') openAuth('reset');
   });
   renderAuth();
@@ -780,11 +774,7 @@ function renderAnalysis(){
     const fill = document.createElement('span'); fill.style.width = Math.max(0, Math.min(100, sg.fit)) + '%';
     bar.append(fill); td2.append(bar, sg.fit + '%');
     tr.append(td1, td2);
-    if (sg.locked) tr.classList.add('locked');
-    const pick = () => {
-      if (sg.locked) { openUnlock(); return; }
-      selected = i; store.set('selected', i); renderAnalysis();
-    };
+    const pick = () => { selected = i; store.set('selected', i); renderAnalysis(); };
     tr.addEventListener('click', pick);
     tr.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); pick(); } });
     tb.append(tr);
@@ -800,23 +790,10 @@ function renderAnalysis(){
   const go = document.createElement('a'); go.href = '#writer'; go.className = 'btn btn-dark'; go.style.cssText = 'justify-self:start;padding:9px 16px;font-size:.85rem';
   go.textContent = 'See the example email ↓';
   d.append(dl, go);
-  const lockedCount = current.segments.filter(x => x.locked).length;
-  if (lockedCount) {
-    const u = document.createElement('div'); u.className = 'unlock';
-    const t = document.createElement('span');
-    t.textContent = `${lockedCount} more customer type${lockedCount > 1 ? 's' : ''} found. Sign up free to see them, plus $50 in credits.`;
-    const b = document.createElement('button'); b.type = 'button'; b.className = 'btn btn-accent'; b.textContent = 'Unlock all';
-    b.addEventListener('click', openUnlock);
-    u.append(t, b); d.append(u);
-  }
 }
 
 const STEPS = [...document.querySelectorAll('#demo .step')];
 function setSteps(n, active){ STEPS.forEach((el, i) => el.className = 'step' + (i < n ? ' done' : (i === n && active ? ' active' : ''))); }
-
-function openUnlock(){
-  if (authOn) openAuth('up', 'Create a free account to see every customer type. You get $50 in credits.');
-}
 
 function cleanSite(raw){ return (raw || '').trim().replace(/^https?:\/\//i, '').replace(/^www\./i, '').replace(/\/.*$/, ''); }
 
@@ -881,11 +858,11 @@ Sort segments by fit, highest first. fit is an integer from 0 to 100.`;
     const r = sample ? await sample.json(prompt, { signal: analyzeCtl.signal }) : await api('analyze', { site, offer }, analyzeCtl.signal);
     if (!r || !Array.isArray(r.segments) || !r.segments.length) throw { code: 'invalid_json' };
     current = {
-      site, offer, example: false, preview: !!r.preview,
+      site, offer, example: false,
       summary: String(r.summary || ''),
       segments: r.segments.slice(0, 6).map(x => ({
         name: String(x.name || 'Segment'), fit: Math.round(Number(x.fit) || 0), buyer: String(x.buyer || ''),
-        why: String(x.why || ''), where: String(x.where || ''), angle: String(x.angle || ''), locked: !!x.locked
+        why: String(x.why || ''), where: String(x.where || ''), angle: String(x.angle || '')
       }))
     };
     selected = 0; store.set('analysis', current); store.set('selected', 0);
