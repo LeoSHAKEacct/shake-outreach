@@ -498,8 +498,8 @@ footer{padding:50px 0 40px;color:var(--muted);font-size:.88rem}
 <footer>
   <div class="wrap foot">
     <a href="#" class="logo" aria-label="Shake Outreach home"><span class="logo-mark" aria-hidden="true">🤝</span><span class="wordmark">Shake<span>Outreach</span></span></a>
-    <nav><a href="#how">How it works</a><a href="#faq">FAQ</a></nav>
-    <span>Shake your money making. © <span id="yr"></span> Shake Outreach</span>
+    <nav><a href="#how">How it works</a><a href="#faq">FAQ</a><a href="mailto:contact@shakeapp.today">contact@shakeapp.today</a></nav>
+    <span>© <span id="yr"></span> Shakeapp Inc.</span>
   </div>
 </footer>
 
@@ -540,13 +540,14 @@ const EXAMPLE = {
 let current = store.get('analysis', EXAMPLE);
 let selected = Math.min(store.get('selected', 0), current.segments.length - 1);
 let lastEmail = null;
-let sample = null, mcp = null;
+let sample = null, mcp = null, backend = false;
 
 function setMode(){
   const t = $('modeTag');
-  t.textContent = sample ? 'Live AI' : 'Preview';
-  t.classList.toggle('live', !!sample);
-  $('gmailBtn').hidden = !mcp;
+  const live = !!sample || backend;
+  t.textContent = live ? 'Live AI' : 'Preview';
+  t.classList.toggle('live', live);
+  $('gmailBtn').textContent = mcp ? 'Save to Gmail drafts' : 'Open in Gmail';
 }
 
 function renderAnalysis(){
@@ -590,8 +591,20 @@ function setSteps(n, active){ STEPS.forEach((el, i) => el.className = 'step' + (
 
 function cleanSite(raw){ return (raw || '').trim().replace(/^https?:\/\//i, '').replace(/^www\./i, '').replace(/\/.*$/, ''); }
 
+async function api(path, body, signal){
+  let r;
+  try { r = await fetch('/api/' + path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body), signal }); }
+  catch (e) { throw { code: signal && signal.aborted ? 'cancelled' : 'network' }; }
+  const data = await r.json().catch(() => ({}));
+  if (!r.ok) throw { code: data.error || 'upstream_error' };
+  return data;
+}
+
 function sampleError(e){
   switch (e && e.code) {
+    case 'missing_key': return 'The AI isn’t switched on yet: the site owner needs to add an Anthropic API key in Vercel.';
+    case 'bad_key': return 'The AI key on the server is wrong. The site owner needs to check it in Vercel.';
+    case 'network': return 'Couldn’t reach the server. Check your connection and try again.';
     case 'cancelled': return 'Stopped.';
     case 'not_granted': case 'sampling_disabled': case 'not_declared': case 'capability_disabled': case 'capability_removed':
       sample = null; setMode(); return 'Claude isn’t allowed on this page, so it’s in preview mode.';
@@ -614,7 +627,7 @@ async function analyze(){
   $('foundCount').textContent = 'thinking…';
   setSteps(0, true);
 
-  if (!sample) { previewAnalyze(site, offer); return; }
+  if (!sample && !backend) { previewAnalyze(site, offer); return; }
 
   analyzeCtl = new AbortController();
   $('runBtn').textContent = 'Stop';
@@ -632,7 +645,7 @@ Find the 5 customer segments most likely to buy from this business. Reply with o
  "segments":[{"name":"segment name, 2-4 words","fit":92,"buyer":"job title of the person to email","why":"one short sentence on why they buy","where":"where to find these prospects and their contacts, one short phrase","angle":"the hook to open the email with, one short sentence"}]}
 Sort segments by fit, highest first. fit is an integer from 0 to 100.`;
   try {
-    const r = await sample.json(prompt, { signal: analyzeCtl.signal });
+    const r = sample ? await sample.json(prompt, { signal: analyzeCtl.signal }) : await api('analyze', { site, offer }, analyzeCtl.signal);
     if (!r || !Array.isArray(r.segments) || !r.segments.length) throw { code: 'invalid_json' };
     current = {
       site, offer, example: false,
@@ -689,7 +702,7 @@ async function writeEmail(){
   if (!f.name && !f.company) { $('writeStatus').className = 'status err'; $('writeStatus').textContent = 'Add at least the prospect’s name or company.'; return; }
   $('writeStatus').className = 'status';
 
-  if (!sample) {
+  if (!sample && !backend) {
     const first = (f.name || 'there').split(' ')[0];
     showEmail({
       subject: `${f.company || 'Quick idea'}: ${sg.angle ? sg.angle.replace(/\.$/, '').toLowerCase() : 'a quick idea'}`,
@@ -720,7 +733,8 @@ Rules:
 
 Reply with only JSON: {"subject":"under 7 words","body":"the email with \\n line breaks","followups":[{"day":3,"body":"..."},{"day":7,"body":"..."}]}`;
   try {
-    const r = await sample.json(prompt, { signal: writeCtl.signal, cache: false });
+    const r = sample ? await sample.json(prompt, { signal: writeCtl.signal, cache: false })
+      : await api('write', { ...f, summary: current.summary, site: current.site, offer: current.offer || '', segment: sg }, writeCtl.signal);
     if (!r || !r.body) throw { code: 'invalid_json' };
     showEmail({ subject: String(r.subject || ''), body: String(r.body), followups: Array.isArray(r.followups) ? r.followups : [] });
     $('writeStatus').className = 'status ok';
@@ -761,6 +775,12 @@ function gmailError(e){
 $('gmailBtn').addEventListener('click', async () => {
   const st = $('sendStatus');
   const to = $('pEmail').value.trim(), subject = $('eSubject').value.trim(), body = $('eBody').value.trim();
+  if (!mcp) {
+    const u = 'https://mail.google.com/mail/?view=cm&fs=1' + (to ? '&to=' + encodeURIComponent(to) : '') + '&su=' + encodeURIComponent(subject) + '&body=' + encodeURIComponent(body);
+    window.open(u, '_blank', 'noopener');
+    st.className = 'status ok'; st.textContent = 'Opened in Gmail. Review it there and press send.';
+    return;
+  }
   if (!body) { st.className = 'status err'; st.textContent = 'Write the email first.'; return; }
   if (to && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(to)) { st.className = 'status err'; st.textContent = 'That email address doesn’t look right.'; return; }
   const btn = $('gmailBtn'); btn.disabled = true; st.className = 'status'; st.textContent = 'Saving to Gmail…';
@@ -818,6 +838,12 @@ showEmail({
 $('sendStatus').textContent = 'Example email. Fill in a prospect and press “Write the email”.';
 renderAnalysis(); renderSaved(); setMode();
 
+if (!window.claude) {
+  fetch('/api/health').then(r => r.ok ? r.json() : null).then(h => {
+    if (h && h.ai) { backend = true; setMode(); $('runStatus').textContent = 'Takes about 20 seconds. We read your homepage first.'; }
+    else if (h) { $('runStatus').textContent = 'Preview mode: the AI isn’t switched on yet, so you’ll see example results.'; }
+  }).catch(() => {});
+}
 if (window.claude && window.claude.use) {
   window.claude.use('sample').then(x => { sample = x; setMode(); }).catch(() => {});
   window.claude.use('mcp').then(x => { mcp = x; setMode(); }).catch(() => {});
