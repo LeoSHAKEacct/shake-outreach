@@ -312,6 +312,22 @@ footer{margin-top:auto;padding:28px 0 24px;color:var(--muted);font-size:.88rem}
 .tbl tr.pick:hover td{color:var(--accent)}
 .tbl tr.pick.sel td{color:var(--accent);font-weight:600}
 .tbl tr.pick:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
+.action-card{max-width:660px;margin:40px auto 0;padding:9px;border-radius:18px;box-shadow:var(--shadow);text-align:left;
+  background:repeating-linear-gradient(135deg,var(--accent) 0 16px,var(--card) 16px 26px,#e9b949 26px 42px,var(--card) 42px 52px)}
+.env{position:relative;background:var(--card);border-radius:10px;padding:84px 30px 28px;display:grid;gap:16px;font-size:.98rem;color:var(--ink2);overflow:hidden}
+.env-flap{position:absolute;inset:0 0 auto 0;height:70px;background:linear-gradient(var(--bg),var(--card));clip-path:polygon(0 0,100% 0,50% 100%);border-bottom:1px solid var(--line)}
+.env-flap::after{content:"🤝";position:absolute;left:50%;top:30px;transform:translateX(-50%);font-size:1.25rem}
+.env-stamp{position:absolute;top:14px;right:16px;border:2px dashed var(--accent);color:var(--accent);background:var(--card);border-radius:4px;padding:6px 8px;text-align:center;font:700 1.1rem Inter,sans-serif;line-height:1;transform:rotate(4deg);z-index:1}
+.env-stamp small{display:block;font-size:.6rem;letter-spacing:.1em;text-transform:uppercase;font-weight:600;margin-top:3px}
+.env h3{font-family:"Instrument Serif",Georgia,serif;font-weight:400;font-size:1.9rem;line-height:1.1;color:var(--ink);padding-right:70px}
+.env dl{display:grid;grid-template-columns:auto 1fr;gap:10px 18px}
+.env dt{font-size:.72rem;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-weight:600;padding-top:3px}
+.env dd{min-width:0;line-height:1.5}
+.env dd.to{font-weight:600;color:var(--ink)}
+.env .lead-find{border-top:1px dashed var(--line);padding-top:16px;margin-top:0}
+.env .lead-find .btn,.env .lead-find input{padding:11px 18px;font-size:.92rem}
+.env-more{font-size:.85rem;color:var(--muted);justify-self:center}
+@media (max-width:560px){.env{padding:80px 18px 20px}.env dl{grid-template-columns:1fr;gap:2px}.env dd{margin-bottom:8px}}
 .seg-detail{margin-top:18px;background:var(--bg);border-radius:14px;padding:16px;font-size:.9rem;color:var(--ink2);display:grid;gap:8px}
 .seg-detail dl{display:grid;grid-template-columns:auto 1fr;gap:6px 14px}
 .seg-detail dt{font-size:.72rem;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-weight:600;padding-top:2px}
@@ -419,6 +435,8 @@ footer{margin-top:auto;padding:28px 0 24px;color:var(--muted);font-size:.88rem}
       <div class="history-title">Your past searches</div>
       <div class="history-list" id="historyList"></div>
     </div>
+
+    <div class="action-card app-only" id="actionCard" hidden></div>
 
     <div class="demo" id="demo" hidden>
       <div class="demo-bar"><i></i><i></i><i></i><span class="url" id="demoUrl">app.shakeoutreach.com/new?site=bikinifactory.com</span><span class="mode" id="modeTag">Preview</span></div>
@@ -1196,7 +1214,7 @@ function renderAnalysis(){
     const fill = document.createElement('span'); fill.style.width = Math.max(0, Math.min(100, sg.fit)) + '%';
     bar.append(fill); td2.append(bar, sg.fit + '%');
     tr.append(td1, td2);
-    const pick = () => { selected = i; store.set('selected', i); renderAnalysis(); };
+    const pick = () => { selected = i; store.set('selected', i); renderAnalysis(); if (!current.example) $('actionCard').scrollIntoView({ behavior: 'smooth', block: 'center' }); };
     tr.addEventListener('click', pick);
     tr.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); pick(); } });
     tb.append(tr);
@@ -1210,11 +1228,27 @@ function renderAnalysis(){
   renderRecipients();
   $('refine').hidden = $('demo').hidden || current.example;
   if (document.activeElement !== $('offer')) collapseRefine();
-  const d = $('segDetail'); d.replaceChildren();
+  // A real search puts the chosen customer type in its own card in the middle of the page;
+  // the example on the landing page keeps it inside the preview.
+  const real = !current.example;
+  $('segDetail').replaceChildren(); $('segDetail').hidden = real;
+  $('actionCard').replaceChildren(); $('actionCard').hidden = !real || $('demo').hidden;
+  let d = $('segDetail');
+  if (real) {
+    // Drawn as an envelope: flap, stamp with the fit score, everything written inside.
+    d = document.createElement('div'); d.className = 'env';
+    const flap = document.createElement('div'); flap.className = 'env-flap';
+    const stamp = document.createElement('div'); stamp.className = 'env-stamp'; stamp.textContent = sg.fit + '%';
+    const sm = document.createElement('small'); sm.textContent = 'fit'; stamp.append(sm);
+    const h = document.createElement('h3'); h.textContent = sg.name;
+    d.append(flap, stamp, h);
+    $('actionCard').append(d);
+  }
   const dl = document.createElement('dl');
-  [['Email', sg.buyer], ['Why', sg.why], ['Find them', sg.where], ['Lead with', sg.angle]].forEach(([k, v]) => {
+  [[real ? 'To' : 'Email', sg.buyer], ['Why', sg.why], ['Find them', sg.where], ['Lead with', sg.angle]].forEach(([k, v], n) => {
     const dt = document.createElement('dt'); dt.textContent = k;
     const dd = document.createElement('dd'); dd.textContent = v || '—';
+    if (real && n === 0) dd.className = 'to';
     dl.append(dt, dd);
   });
   const go = document.createElement('a'); go.href = '#writer'; go.className = 'btn btn-dark'; go.style.cssText = 'justify-self:start;padding:9px 16px;font-size:.85rem';
@@ -1245,6 +1279,11 @@ function renderAnalysis(){
     h.setAttribute('aria-describedby', 'hotTip');
     wrap.append(h, tip);
     f.append(loc, b, wrap); d.append(f);
+    if (current.segments.length > 1) {
+      const more = document.createElement('a'); more.href = '#demo'; more.className = 'env-more'; more.textContent = 'Other customer types ↓';
+      more.addEventListener('click', e => { e.preventDefault(); $('demo').scrollIntoView({ behavior: 'smooth', block: 'start' }); });
+      d.append(more);
+    }
   }
   renderLeads();
   renderHot();
@@ -1590,7 +1629,8 @@ Sort segments by fit, highest first. fit is an integer from 0 to 100.`;
     selected = 0; store.set('analysis', current); store.set('selected', 0);
     setActive(true); saveToHistory(current); renderHistory();
     setSteps(5); renderAnalysis();
-    $('runStatus').textContent = 'Done. Pick a customer type to see its email.';
+    $('runStatus').textContent = 'Done. Here’s your best customer type.';
+    $('actionCard').scrollIntoView({ behavior: 'smooth', block: 'center' });
   } catch (e) {
     setSteps(5); renderAnalysis();
     $('runStatus').textContent = sampleError(e);
