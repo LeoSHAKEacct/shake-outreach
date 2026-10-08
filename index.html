@@ -312,9 +312,9 @@ footer{padding:50px 0 40px;color:var(--muted);font-size:.88rem}
       <button class="btn btn-accent" type="submit" id="runBtn">Find my customers →</button>
     </form>
     <input id="offer" class="offer" type="text" placeholder="What do you sell? (optional, makes results sharper)" aria-label="What you sell" autocomplete="off">
-    <p class="hint" id="runStatus">Takes about 30 seconds. Results below show an example until you run it.</p>
+    <p class="hint" id="runStatus">Takes about 20 seconds.</p>
 
-    <div class="demo" id="demo">
+    <div class="demo" id="demo" hidden>
       <div class="demo-bar"><i></i><i></i><i></i><span class="url" id="demoUrl">app.shakeoutreach.com/new?site=bikinifactory.com</span><span class="mode" id="modeTag">Preview</span></div>
       <div class="demo-body">
         <div class="demo-left">
@@ -336,7 +336,7 @@ footer{padding:50px 0 40px;color:var(--muted);font-size:.88rem}
       </div>
     </div>
 
-    <div class="demo writer" id="writer">
+    <div class="demo writer" id="writer" hidden>
       <div class="demo-bar"><span style="font-weight:600;color:var(--ink)">Your email</span></div>
       <div class="mailbox">
         <div class="field"><label for="pEmail">To</label><input id="pEmail" type="email" value="maria@coastlineswim.com" autocomplete="off"></div>
@@ -828,10 +828,13 @@ function sampleError(e){
 // ---- step 1: analyze ----
 let analyzeCtl = null;
 async function analyze(){
-  if (analyzeCtl) { analyzeCtl.abort(); return; }
+  if (analyzeCtl || $('runBtn').disabled) return;
   const site = cleanSite($('site').value);
   const offer = $('offer').value.trim();
   if (!site) { $('runStatus').textContent = 'Type your website first.'; $('site').focus(); return; }
+  $('demo').hidden = false; $('writer').hidden = false;
+  $('demo').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  setRunning(true);
   $('demoUrl').textContent = 'app.shakeoutreach.com/new?site=' + site;
   $('summaryText').textContent = 'Working on ' + site + '…';
   $('foundCount').textContent = 'thinking…';
@@ -840,7 +843,6 @@ async function analyze(){
   if (!sample && !backend) { previewAnalyze(site, offer); return; }
 
   analyzeCtl = new AbortController();
-  $('runBtn').textContent = 'Stop';
   $('runStatus').textContent = 'Claude is studying your market…';
   let tick = 0; const timer = setInterval(() => { tick = Math.min(tick + 1, 3); setSteps(tick, true); }, 6000);
   const prompt = `You are a B2B sales strategist helping a business plan cold email outreach.
@@ -872,7 +874,7 @@ Sort segments by fit, highest first. fit is an integer from 0 to 100.`;
     setSteps(5); renderAnalysis();
     $('runStatus').textContent = sampleError(e);
   } finally {
-    clearInterval(timer); analyzeCtl = null; $('runBtn').textContent = 'Find my customers →';
+    clearInterval(timer); analyzeCtl = null; setRunning(false);
   }
 }
 
@@ -887,6 +889,12 @@ const PROFILES = [
     {name:'Enterprise teams', fit:60, buyer:'Department head', why:'Big budgets, slower decisions.', where:'LinkedIn', angle:'A low-risk pilot.'}
   ]}}
 ];
+function setRunning(on){
+  const b = $('runBtn');
+  b.disabled = on;
+  b.textContent = on ? 'Finding 💸' : 'Find my customers →';
+}
+
 function previewAnalyze(site, offer){
   const p = PROFILES.find(x => x.match.test(site + ' ' + offer)).data;
   let i = 0;
@@ -895,7 +903,7 @@ function previewAnalyze(site, offer){
     if (i >= 5) {
       clearInterval(t);
       current = { ...p, site, offer, example: true }; selected = 0;
-      renderAnalysis();
+      renderAnalysis(); setRunning(false);
       $('runStatus').textContent = 'Preview mode shows example results. Open the live version to run it for real.';
     }
   }, 700);
@@ -953,7 +961,6 @@ $('tryForm').addEventListener('submit', e => { e.preventDefault(); analyze(); })
 $('tryForm2').addEventListener('submit', e => {
   e.preventDefault();
   $('site').value = e.target.querySelector('input').value;
-  $('demo').scrollIntoView({ behavior: 'smooth', block: 'center' });
   analyze();
 });
 
