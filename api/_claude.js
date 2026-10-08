@@ -92,12 +92,13 @@ async function safeUrl(raw) {
   return u;
 }
 
-export async function fetchSiteText(raw) {
+// Fetch a public page's HTML (following up to 3 redirects, refusing private addresses).
+export async function fetchHtml(raw, timeoutMs = 8000) {
   let url = await safeUrl(raw);
   for (let hop = 0; url && hop < 4; hop++) {
     let r;
     try {
-      r = await fetch(url, { redirect: "manual", signal: AbortSignal.timeout(8000),
+      r = await fetch(url, { redirect: "manual", signal: AbortSignal.timeout(timeoutMs),
         headers: { "User-Agent": "Mozilla/5.0 (compatible; ShakeOutreachBot/1.0)", "Accept": "text/html" } });
     } catch { return ""; }
     if (r.status >= 300 && r.status < 400 && r.headers.get("location")) {
@@ -105,15 +106,20 @@ export async function fetchSiteText(raw) {
       continue;
     }
     if (!r.ok || !/text\/html|text\/plain/i.test(r.headers.get("content-type") || "")) return "";
-    const html = (await r.text()).slice(0, 1_500_000);
-    const title = (html.match(/<title[^>]*>([\s\S]*?)<\/title>/i) || [])[1] || "";
-    const desc = (html.match(/<meta[^>]+name=["']description["'][^>]+content=["']([^"']*)/i) || [])[1] || "";
-    const body = html
-      .replace(/<(script|style|noscript|svg|template)[\s\S]*?<\/\1>/gi, " ")
-      .replace(/<[^>]+>/g, " ")
-      .replace(/&nbsp;/g, " ").replace(/&amp;/g, "&").replace(/&#39;|&apos;/g, "'").replace(/&quot;/g, '"')
-      .replace(/\s+/g, " ").trim();
-    return [title && "Title: " + title, desc && "Description: " + desc, body].filter(Boolean).join("\n").slice(0, 12000);
+    return (await r.text()).slice(0, 1_500_000);
   }
   return "";
+}
+
+export async function fetchSiteText(raw) {
+  const html = await fetchHtml(raw);
+  if (!html) return "";
+  const title = (html.match(/<title[^>]*>([\s\S]*?)<\/title>/i) || [])[1] || "";
+  const desc = (html.match(/<meta[^>]+name=["']description["'][^>]+content=["']([^"']*)/i) || [])[1] || "";
+  const body = html
+    .replace(/<(script|style|noscript|svg|template)[\s\S]*?<\/\1>/gi, " ")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&nbsp;/g, " ").replace(/&amp;/g, "&").replace(/&#39;|&apos;/g, "'").replace(/&quot;/g, '"')
+    .replace(/\s+/g, " ").trim();
+  return [title && "Title: " + title, desc && "Description: " + desc, body].filter(Boolean).join("\n").slice(0, 12000);
 }

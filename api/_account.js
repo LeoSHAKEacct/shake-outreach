@@ -9,6 +9,14 @@ export const DAILY_SEND_CAP = 50;    // emails per user per day, to protect thei
 
 const KEY = () => process.env.SUPABASE_SERVICE_ROLE_KEY;
 export const tracking = () => Boolean(KEY());
+export const PAID_PLANS = ["starter", "growth", "pro"];
+export const HOT_TRIAL_DAYS = 7;
+export const isPaid = user => PAID_PLANS.includes(String((user.app_metadata || {}).plan || "").toLowerCase());
+export function hotDaysLeft(user) {
+  if (isPaid(user)) return null;
+  const start = Date.parse(user.created_at || "") || Date.now();
+  return Math.max(0, Math.ceil(HOT_TRIAL_DAYS - (Date.now() - start) / 86400000));
+}
 
 export function account(user) {
   const m = (user && user.app_metadata) || {};
@@ -22,6 +30,8 @@ export function account(user) {
     lead_price: LEAD_PRICE,
     plan: m.plan || "trial",
     gmail: m.gmail ? m.gmail.email : "",
+    paid: isPaid(user || {}),
+    hot_days_left: user ? hotDaysLeft(user) : 0,
     tracked: tracking(),
   };
 }

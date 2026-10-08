@@ -237,6 +237,19 @@ body[data-page] .hero{display:none}
 .recip.sent{background:var(--green-soft);border-color:transparent}
 .hint-small{font-size:.82rem;color:var(--muted)}
 
+/* hot leads */
+.hot-list{display:grid;gap:12px}
+.hot-item{border:1px solid var(--line);border-radius:14px;padding:14px 16px;display:grid;gap:8px;background:var(--card)}
+.hot-meta{display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:.8rem;color:var(--muted)}
+.hot-src{font-weight:700;font-size:.72rem;padding:2px 8px;border-radius:999px;background:var(--grey-soft);color:var(--ink)}
+.hot-score{margin-left:auto;font-weight:700;color:var(--accent)}
+.hot-text{font-size:.93rem;color:var(--ink);white-space:pre-wrap;display:-webkit-box;-webkit-line-clamp:5;-webkit-box-orient:vertical;overflow:hidden}
+.hot-why{font-size:.85rem;color:var(--ink2)}
+.hot-reply{background:var(--bg);border-radius:10px;padding:10px 12px;font-size:.88rem;color:var(--ink2);white-space:pre-wrap}
+.hot-actions{display:flex;gap:8px;flex-wrap:wrap}
+.hot-actions .btn{padding:7px 14px;font-size:.82rem}
+.hot-section .hot-list{max-width:760px;margin:40px auto 0}
+
 /* past searches */
 .history{max-width:560px;margin:28px auto 0;text-align:left}
 .history-title{font-size:.72rem;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);font-weight:600;margin-bottom:10px}
@@ -348,6 +361,7 @@ footer{margin-top:auto;padding:28px 0 24px;color:var(--muted);font-size:.88rem}
     <nav class="nav-links">
       <a href="#how">How it works</a>
       <a href="#inbox">Inbox</a>
+      <a href="#hot">Hot leads</a>
       <a href="#pricing">Pricing</a>
       <a href="#faq">FAQ</a>
     </nav>
@@ -422,6 +436,14 @@ footer{margin-top:auto;padding:28px 0 24px;color:var(--muted);font-size:.88rem}
       <div class="leads-body">
         <p class="status" id="leadsStatus"></p>
         <div class="leads-scroll"><table class="ltbl" id="leadsTable"><thead><tr><th>Business</th><th>Email</th><th>Phone</th></tr></thead><tbody></tbody></table></div>
+      </div>
+    </div>
+
+    <div class="demo leads" id="hotBox" hidden>
+      <div class="demo-bar"><span style="font-weight:600;color:var(--ink)" id="hotTitle">🔥 Hot leads</span><span class="mode" id="hotCount"></span></div>
+      <div class="leads-body">
+        <p class="status" id="hotStatus"></p>
+        <div class="hot-list" id="hotList"></div>
       </div>
     </div>
 
@@ -573,6 +595,23 @@ footer{margin-top:auto;padding:28px 0 24px;color:var(--muted);font-size:.88rem}
   </div>
 </section>
 
+<!-- HOT LEADS -->
+<section id="hot" class="mkt hot-section" style="padding-top:0">
+  <div class="wrap">
+    <div class="center">
+      <span class="eyebrow">New · 1 week free</span>
+      <h2>🔥 Hot leads, <em>in real time.</em></h2>
+      <p class="lead">Right now, someone is posting “can anyone recommend a…” for exactly what you sell. We scan Reddit and X around the clock, pick out the people who are ready to buy, and write you a helpful reply for each one.</p>
+    </div>
+    <div class="steps">
+      <div class="card"><div class="num">01</div><h3>We listen</h3><p>Fresh public posts where people ask for recommendations or complain about their current provider.</p></div>
+      <div class="card"><div class="num">02</div><h3>We filter</h3><p>AI keeps only the people who genuinely want what you sell, scored by how ready they are.</p></div>
+      <div class="card"><div class="num">03</div><h3>You reply first</h3><p>Open the post, paste the ready reply, and be the first business they hear from.</p></div>
+      <div class="card"><div class="num">04</div><h3>Free for a week</h3><p>Every new account gets hot leads free for 7 days. After that they’re part of every paid plan.</p></div>
+    </div>
+  </div>
+</section>
+
 <!-- PRICING -->
 <section id="pricing" class="mkt" style="padding-top:0">
   <div class="wrap">
@@ -678,9 +717,9 @@ footer{margin-top:auto;padding:28px 0 24px;color:var(--muted);font-size:.88rem}
     </div>
     <h3 class="page-sub">Plans</h3>
     <div class="plans plans-page">
-      <div class="card plan"><h3>Starter</h3><div class="price">$50 <small>/ month</small></div><ul><li>500 leads with email a month</li><li>AI emails for every lead</li><li>Send from your Gmail</li></ul><button class="btn btn-ghost activate" type="button" data-plan="Starter">Activate</button></div>
-      <div class="card plan hot"><span class="badge">Most popular</span><h3>Growth</h3><div class="price">$88 <small>/ month</small></div><ul><li>1,000 leads with email a month</li><li>AI emails for every lead</li><li>Priority support</li></ul><button class="btn btn-accent activate" type="button" data-plan="Growth">Activate</button></div>
-      <div class="card plan"><h3>Pro</h3><div class="price">$150 <small>/ month</small></div><ul><li>2,000 leads with email a month</li><li>AI emails for every lead</li><li>Dedicated onboarding</li></ul><button class="btn btn-ghost activate" type="button" data-plan="Pro">Activate</button></div>
+      <div class="card plan"><h3>Starter</h3><div class="price">$50 <small>/ month</small></div><ul><li>500 leads with email a month</li><li>AI emails for every lead</li><li>Send from your Gmail</li><li>🔥 Hot leads in real time</li></ul><button class="btn btn-ghost activate" type="button" data-plan="Starter">Activate</button></div>
+      <div class="card plan hot"><span class="badge">Most popular</span><h3>Growth</h3><div class="price">$88 <small>/ month</small></div><ul><li>1,000 leads with email a month</li><li>AI emails for every lead</li><li>🔥 Hot leads in real time</li><li>Priority support</li></ul><button class="btn btn-accent activate" type="button" data-plan="Growth">Activate</button></div>
+      <div class="card plan"><h3>Pro</h3><div class="price">$150 <small>/ month</small></div><ul><li>2,000 leads with email a month</li><li>AI emails for every lead</li><li>🔥 Hot leads in real time</li><li>Dedicated onboarding</li></ul><button class="btn btn-ghost activate" type="button" data-plan="Pro">Activate</button></div>
     </div>
     <p class="status" id="planNote" style="text-align:center;margin-top:16px"></p>
   </div>
@@ -1084,15 +1123,22 @@ function renderAnalysis(){
     b.disabled = !!leadRun;
     b.addEventListener('click', findLeads);
     loc.addEventListener('keydown', e => { if (e.key === 'Enter') findLeads(); });
-    f.append(loc, b); d.append(f);
+    const h = document.createElement('button'); h.type = 'button'; h.className = 'btn btn-dark'; h.id = 'hotBtn';
+    h.textContent = hotRun ? 'Finding 🔥' : '🔥 Hot leads'; h.disabled = !!hotRun;
+    h.title = 'People asking online right now for what you sell';
+    h.addEventListener('click', findHot);
+    f.append(loc, b, h); d.append(f);
   }
   renderLeads();
+  renderHot();
 }
 
 // ---- real leads (Google Maps via Apify) ----
 let leadRun = null;
 function leadsError(code){
   switch (code) {
+    case 'no_place': return 'Couldn’t find that place. Try “City, Country”.';
+    case 'free_source_busy': return 'The free lead source is busy right now. Try again in a minute.';
     case 'no_credits': return 'You’re out of credits. See Credits & plans to keep going.';
     case 'missing_apify': return 'Lead search isn’t switched on yet: the site owner needs to add the Apify token in Vercel.';
     case 'apify_credits': return 'The lead finder is out of credits. Try again later.';
@@ -1120,12 +1166,15 @@ async function findLeads(){
   if (!loc) { sg.leadsError = leadsError('no_location'); renderLeads(); $('leadLoc').focus(); return; }
   store.set('loc', loc);
   sg.leads = []; sg.leadsLoc = loc; sg.leadsError = '';
-  leadRun = { segIndex, msg: 'Finding 💸 real ' + sg.name.toLowerCase() + ' in ' + loc + '. This takes 1–3 minutes.' };
+  leadRun = { segIndex, msg: 'Finding 💸 real ' + sg.name.toLowerCase() + ' in ' + loc + '. This can take up to a minute or two.' };
   renderAnalysis();
   try {
-    const { ticket } = await leadsApi('POST', { query: sg.search || sg.name, location: loc });
+    const first = await leadsApi('POST', { query: sg.search || sg.name, location: loc, osm: sg.osm || [] });
+    if (first.account) { acct = first.account; renderAccount(); }
+    const ticket = first.ticket;
+    if (!ticket) sg.leads = first.leads || [];
     const started = Date.now();
-    while (true) {
+    while (ticket) {
       await new Promise(r => setTimeout(r, 6000));
       const res = await leadsApi('GET', ticket);
       sg.leads = res.leads;
@@ -1167,6 +1216,104 @@ function renderLeads(){
     const e = document.createElement('td'); e.textContent = l.email || '—'; if (!l.email) e.className = 'none';
     const p = document.createElement('td'); p.textContent = l.phone || '—'; if (!l.phone) p.className = 'none';
     tr.append(a, e, p); tb.append(tr);
+  });
+}
+
+// ---- hot leads: people posting right now that they need what you sell ----
+let hotRun = null;
+function hotError(code){
+  switch (code) {
+    case 'hot_trial_over': return 'Your free week of hot leads is over. See Credits & plans to keep them coming.';
+    case 'missing_apify': return 'Hot leads aren’t switched on yet: the site owner needs to add the Apify token.';
+    case 'rate_limited': return 'Too many hot lead searches. Wait a few minutes and try again.';
+    case 'auth_required': return 'Sign in to find hot leads.';
+    default: return 'Couldn’t check for hot leads right now. Try again in a minute.';
+  }
+}
+async function hotApi(method, path, body){
+  const headers = { 'Content-Type': 'application/json', Authorization: 'Bearer ' + session.access_token };
+  const r = await fetch(path, method === 'GET' ? { headers } : { method, headers, body: JSON.stringify(body) });
+  const d = await r.json().catch(() => ({}));
+  if (!r.ok) throw { code: d.error || 'error' };
+  return d;
+}
+async function findHot(){
+  if (hotRun) return;
+  if (!session) { openAuth('up', 'Create a free account. Hot leads are free for your first week.'); return; }
+  const segIndex = selected, sg = current.segments[segIndex];
+  const loc = ($('leadLoc') && $('leadLoc').value.trim()) || '';
+  if (loc) store.set('loc', loc);
+  sg.hot = { posts: [], matches: [], loc, error: '' };
+  hotRun = { segIndex, msg: 'Finding 🔥 people asking for this right now' + (loc ? ' in ' + loc : '') + '. This takes 1–3 minutes.' };
+  renderAnalysis();
+  $('hotBox').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  try {
+    const { ticket } = await hotApi('POST', '/api/hot', { summary: current.summary, segment: sg.name, location: loc });
+    const started = Date.now();
+    let res = { done: false, posts: [] };
+    while (!res.done && Date.now() - started < 4 * 60000) {
+      await new Promise(r => setTimeout(r, 8000));
+      res = await hotApi('GET', '/api/hot?ticket=' + encodeURIComponent(ticket));
+      hotRun.msg = 'Reading ' + res.posts.length + ' recent posts…';
+      if (selected === segIndex) renderHot();
+    }
+    sg.hot.posts = res.posts;
+    if (res.posts.length) {
+      hotRun.msg = 'Picking the people who actually want to buy…';
+      if (selected === segIndex) renderHot();
+      const sc = await hotApi('POST', '/api/hot-score', { summary: current.summary, sender: senderName(), posts: res.posts.map(p => ({ text: p.text })) });
+      sg.hot.matches = sc.matches;
+    }
+    store.set('analysis', current); saveToHistory(current);
+  } catch (e) {
+    sg.hot.error = hotError(e && e.code);
+  } finally {
+    hotRun = null;
+    loadAccount();
+    if (selected === segIndex) renderAnalysis();
+  }
+}
+function timeAgo(at){
+  const t = Date.parse(at); if (!t) return '';
+  const m = Math.round((Date.now() - t) / 60000);
+  return m < 60 ? m + ' min ago' : m < 1440 ? Math.round(m / 60) + ' h ago' : Math.round(m / 1440) + ' days ago';
+}
+function renderHot(){
+  const sg = current.segments[selected];
+  const box = $('hotBox'), list = $('hotList'), st = $('hotStatus');
+  const running = !!(hotRun && hotRun.segIndex === selected);
+  const h = sg.hot;
+  box.hidden = $('demo').hidden || !(h || running);
+  if (box.hidden) return;
+  const trial = acct.paid ? '' : (acct.hot_days_left > 0 ? ' · free for ' + acct.hot_days_left + ' more day' + (acct.hot_days_left === 1 ? '' : 's') : '');
+  $('hotTitle').textContent = '🔥 Hot leads · ' + sg.name + (h && h.loc ? ' in ' + h.loc : '');
+  const matches = (h && h.matches) || [];
+  $('hotCount').textContent = (matches.length ? matches.length + ' people asking' : '') + trial;
+  if (running) { st.className = 'status'; st.textContent = hotRun.msg; }
+  else if (h && h.error) { st.className = 'status err'; st.textContent = h.error; }
+  else if (matches.length) { st.className = 'status ok'; st.textContent = 'Reply on their post while it’s fresh. We wrote a reply for each.'; }
+  else if (h) { st.className = 'status err'; st.textContent = 'Nobody asking for this right now. Try again later or another customer type.'; }
+  list.replaceChildren();
+  matches.forEach(m => {
+    const p = h.posts[m.i]; if (!p) return;
+    const item = document.createElement('div'); item.className = 'hot-item';
+    const meta = document.createElement('div'); meta.className = 'hot-meta';
+    const src = document.createElement('span'); src.className = 'hot-src'; src.textContent = p.source;
+    const who = document.createElement('span'); who.textContent = [p.author && '@' + p.author, p.where && (p.source === 'Reddit' ? 'r/' + p.where : p.where), timeAgo(p.at)].filter(Boolean).join(' · ');
+    const score = document.createElement('span'); score.className = 'hot-score'; score.textContent = m.score + '% ready to buy';
+    meta.append(src, who, score);
+    const text = document.createElement('div'); text.className = 'hot-text'; text.textContent = p.text;
+    const why = document.createElement('div'); why.className = 'hot-why'; why.textContent = m.why;
+    const reply = document.createElement('div'); reply.className = 'hot-reply'; reply.textContent = m.reply;
+    const acts = document.createElement('div'); acts.className = 'hot-actions';
+    const open = document.createElement('a'); open.className = 'btn btn-accent'; open.href = p.url; open.target = '_blank'; open.rel = 'noopener'; open.textContent = 'Open post';
+    const copy = document.createElement('button'); copy.type = 'button'; copy.className = 'btn btn-ghost'; copy.textContent = 'Copy reply';
+    copy.addEventListener('click', async () => {
+      try { await navigator.clipboard.writeText(m.reply); copy.textContent = 'Copied ✓'; } catch { copy.textContent = 'Select and copy'; }
+    });
+    acts.append(open, copy);
+    item.append(meta, text, why, reply, acts);
+    list.append(item);
   });
 }
 
@@ -1319,7 +1466,8 @@ Sort segments by fit, highest first. fit is an integer from 0 to 100.`;
       segments: r.segments.slice(0, 6).map(x => ({
         name: String(x.name || 'Segment'), fit: Math.round(Number(x.fit) || 0), buyer: String(x.buyer || ''),
         why: String(x.why || ''), where: String(x.where || ''), angle: String(x.angle || ''),
-        subject: String(x.subject || ''), body: String(x.body || ''), search: String(x.search || '')
+        subject: String(x.subject || ''), body: String(x.body || ''), search: String(x.search || ''),
+        osm: Array.isArray(x.osm) ? x.osm.map(String).slice(0, 5) : []
       }))
     };
     selected = 0; store.set('analysis', current); store.set('selected', 0);
