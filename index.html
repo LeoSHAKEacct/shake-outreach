@@ -196,6 +196,15 @@ header.scrolled{border-color:var(--line)}
 .plan .badge{align-self:flex-start;background:var(--accent);color:#fff;font-size:.72rem;font-weight:600;padding:4px 10px;border-radius:999px;margin-bottom:10px}
 .beta-note{margin:22px auto 0;text-align:center;font-size:.9rem;color:var(--muted)}
 
+/* signed-in app view */
+.app-only{display:none}
+body.app .app-only{display:block}
+body.app .mkt{display:none!important}
+body.app .nav-links{display:none}
+body.app .hero{padding:48px 0 60px}
+.app-head h2{font-size:clamp(2rem,4vw,2.8rem)}
+.app-head .lead{margin:10px auto 0}
+
 /* faq */
 .faq{max-width:760px;margin:48px auto 0}
 details{border-top:1px solid var(--line);padding:20px 0}
@@ -312,10 +321,14 @@ footer{padding:50px 0 40px;color:var(--muted);font-size:.88rem}
 <!-- HERO -->
 <section class="hero">
   <div class="wrap">
-    <span class="pill"><b>LIVE</b> Try it on your own website below</span>
-    <p class="slogan">Shake your money making.</p>
-    <h1>Your sales team that<br><em>never clocks out.</em></h1>
-    <p class="lead">Shake Outreach studies your market, finds the people who actually make the buying decision, writes them a personal email and follows up, all while you run your business.</p>
+    <div class="app-head app-only">
+      <h2 id="appHello">Hi there 👋</h2>
+      <p class="lead">Paste a website and find its best customers.</p>
+    </div>
+    <span class="pill mkt"><b>LIVE</b> Try it on your own website below</span>
+    <p class="slogan mkt">Shake your money making.</p>
+    <h1 class="mkt">Your sales team that<br><em>never clocks out.</em></h1>
+    <p class="lead mkt">Shake Outreach studies your market, finds the people who actually make the buying decision, writes them a personal email and follows up, all while you run your business.</p>
     <form class="try" id="tryForm">
       <input id="site" type="text" placeholder="Enter your website, e.g. yourbrand.com" aria-label="Your website" autocomplete="off">
       <button class="btn btn-accent" type="submit" id="runBtn">Find my customers →</button>
@@ -362,7 +375,7 @@ footer{padding:50px 0 40px;color:var(--muted);font-size:.88rem}
 </section>
 
 <!-- OUTCOMES MARQUEE -->
-<div class="marquee" aria-hidden="true">
+<div class="marquee mkt" aria-hidden="true">
   <div class="track" id="track">
     <div class="chip"><i>📬</i>Emails written from <b>real research</b>, not templates</div>
     <div class="chip"><i>🎯</i>Reaches the <b>owner or decision-maker</b></div>
@@ -376,7 +389,7 @@ footer{padding:50px 0 40px;color:var(--muted);font-size:.88rem}
 </div>
 
 <!-- HOW IT WORKS -->
-<section id="how">
+<section id="how" class="mkt">
   <div class="wrap">
     <div class="center">
       <span class="eyebrow">How it works</span>
@@ -393,7 +406,7 @@ footer{padding:50px 0 40px;color:var(--muted);font-size:.88rem}
 </section>
 
 <!-- CAMPAIGNS + INBOX -->
-<section id="inbox" style="padding-top:0">
+<section id="inbox" class="mkt" style="padding-top:0">
   <div class="wrap">
     <div class="split">
       <div>
@@ -458,7 +471,7 @@ footer{padding:50px 0 40px;color:var(--muted);font-size:.88rem}
 </section>
 
 <!-- INFRA -->
-<section style="padding-top:0">
+<section class="mkt" style="padding-top:0">
   <div class="wrap">
     <div class="center">
       <span class="eyebrow">Under the hood</span>
@@ -474,7 +487,7 @@ footer{padding:50px 0 40px;color:var(--muted);font-size:.88rem}
 </section>
 
 <!-- WHO -->
-<section style="padding-top:0">
+<section class="mkt" style="padding-top:0">
   <div class="wrap">
     <div class="center">
       <span class="eyebrow">Built for</span>
@@ -489,7 +502,7 @@ footer{padding:50px 0 40px;color:var(--muted);font-size:.88rem}
 </section>
 
 <!-- PRICING -->
-<section id="pricing" style="padding-top:0">
+<section id="pricing" class="mkt" style="padding-top:0">
   <div class="wrap">
     <div class="center">
       <span class="eyebrow">Pricing</span>
@@ -522,7 +535,7 @@ footer{padding:50px 0 40px;color:var(--muted);font-size:.88rem}
 </section>
 
 <!-- FAQ -->
-<section id="faq" style="padding-top:0">
+<section id="faq" class="mkt" style="padding-top:0">
   <div class="wrap">
     <div class="center">
       <span class="eyebrow">FAQ</span>
@@ -540,7 +553,7 @@ footer{padding:50px 0 40px;color:var(--muted);font-size:.88rem}
 </section>
 
 <!-- CTA -->
-<section id="start" style="padding-top:0">
+<section id="start" class="mkt" style="padding-top:0">
   <div class="wrap">
     <div class="cta">
       <h2>Your next customer is<br><em>one email away.</em></h2>
@@ -640,8 +653,15 @@ function renderAuth(){
   document.getElementById('creditChip').hidden = !on || !inn;
   document.getElementById('getStarted').hidden = on && inn;
   document.getElementById('mGetStarted').hidden = on && inn;
+  const app = on && inn;
+  document.body.classList.toggle('app', app);
+  if (app && typeof current !== 'undefined' && !current.example) {
+    document.getElementById('demo').hidden = false;
+    document.getElementById('writer').hidden = false;
+  }
   if (inn) {
     const n = firstName(session.user);
+    document.getElementById('appHello').textContent = 'Hi ' + n + ' 👋';
     document.getElementById('userName').textContent = n;
     document.getElementById('avatar').textContent = n.charAt(0).toUpperCase();
   }
@@ -836,7 +856,7 @@ function setMode(){
 function renderAnalysis(){
   $('summaryText').textContent = current.summary;
   $('demoUrl').textContent = 'app.shakeoutreach.com/new?site=' + current.site;
-  $('foundCount').textContent = current.example ? 'Example' : current.segments.length + ' segments found';
+  $('foundCount').textContent = current.example ? 'Example' : current.segments.length + (current.segments.length === 1 ? ' customer type' : ' customer types');
   const tb = document.querySelector('#fitTable tbody');
   tb.replaceChildren();
   current.segments.forEach((sg, i) => {
@@ -867,7 +887,7 @@ function renderAnalysis(){
     dl.append(dt, dd);
   });
   const go = document.createElement('a'); go.href = '#writer'; go.className = 'btn btn-dark'; go.style.cssText = 'justify-self:start;padding:9px 16px;font-size:.85rem';
-  go.textContent = 'See the example email ↓';
+  go.textContent = current.example ? 'See the example email ↓' : 'See the email ↓';
   d.append(dl, go);
 }
 
@@ -953,7 +973,7 @@ Sort segments by fit, highest first. fit is an integer from 0 to 100.`;
     };
     selected = 0; store.set('analysis', current); store.set('selected', 0);
     setSteps(5); renderAnalysis();
-    $('runStatus').textContent = 'Done. Pick a segment, then write to a prospect.';
+    $('runStatus').textContent = 'Done. Pick a customer type to see its email.';
   } catch (e) {
     setSteps(5); renderAnalysis();
     $('runStatus').textContent = sampleError(e);
