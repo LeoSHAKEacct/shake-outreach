@@ -3,11 +3,29 @@ import { unseal, updateAppMeta, DAILY_SEND_CAP } from "./_account.js";
 
 // Sends one personal email per recipient from the user's connected Gmail.
 function header(v) { return /^[\x20-\x7e]*$/.test(v) ? v : "=?UTF-8?B?" + Buffer.from(v, "utf8").toString("base64") + "?="; }
+// Bodies use [words](https://…) for links: plain text shows "words (link)", HTML shows a real link.
+const LINK = /\[([^\]\n]+)\]\(((?:https?:\/\/|mailto:)[^\s)"<>]+)\)/gi;
+const esc = t => t.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+const toText = b => b.replace(LINK, (_, t, u) => t === u ? u : t + " (" + u + ")");
+function toHtml(b) {
+  let out = "", last = 0, m;
+  LINK.lastIndex = 0;
+  while ((m = LINK.exec(b))) {
+    out += esc(b.slice(last, m.index)) + '<a href="' + esc(m[2]) + '">' + esc(m[1]) + "</a>";
+    last = LINK.lastIndex;
+  }
+  out += esc(b.slice(last));
+  return '<div style="font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:1.5">' + out.replace(/\r?\n/g, "<br>") + "</div>";
+}
+const b64 = t => Buffer.from(t, "utf8").toString("base64").replace(/.{76}/g, "$&\r\n");
 function mime({ from, to, subject, body }) {
+  const boundary = "so_" + Math.random().toString(36).slice(2);
   return [
     "From: " + from, "To: " + to, "Subject: " + header(subject),
-    "MIME-Version: 1.0", "Content-Type: text/plain; charset=UTF-8", "Content-Transfer-Encoding: base64",
-    "", Buffer.from(body, "utf8").toString("base64"),
+    "MIME-Version: 1.0", 'Content-Type: multipart/alternative; boundary="' + boundary + '"', "",
+    "--" + boundary, "Content-Type: text/plain; charset=UTF-8", "Content-Transfer-Encoding: base64", "", b64(toText(body)),
+    "--" + boundary, "Content-Type: text/html; charset=UTF-8", "Content-Transfer-Encoding: base64", "", b64(toHtml(body)),
+    "--" + boundary + "--", "",
   ].join("\r\n");
 }
 

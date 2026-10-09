@@ -235,6 +235,7 @@ body[data-page] .hero{display:none}
 .credit-chip{cursor:pointer;border:0;font-family:inherit}
 
 /* recipients */
+.recip-add{flex:1;min-width:180px;border:0;background:transparent;color:var(--ink);font:400 .88rem Inter,sans-serif;padding:5px 6px;outline:0}
 .recips{display:flex;flex-wrap:wrap;gap:6px;padding:8px;border:1px solid var(--line);background:var(--bg);border-radius:12px;max-height:140px;overflow:auto}
 .recip{display:inline-flex;align-items:center;gap:6px;background:var(--card);border:1px solid var(--line);border-radius:999px;padding:4px 6px 4px 10px;font-size:.82rem;max-width:100%}
 .recip span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -345,6 +346,14 @@ footer{margin-top:auto;padding:28px 0 24px;color:var(--muted);font-size:.88rem}
 .row2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 .seg-chip{display:inline-flex;gap:6px;align-items:center;font-size:.83rem;background:var(--accent-soft);color:var(--accent);border-radius:999px;padding:4px 12px;font-weight:600;justify-self:start}
 .body-edit{min-height:230px!important}
+.field .body-edit{width:100%;border:1px solid var(--line);background:var(--bg);color:var(--ink);border-radius:12px;padding:10px 12px;font:400 .93rem/1.6 Inter,sans-serif;outline:0;white-space:pre-wrap;overflow-wrap:anywhere;max-height:520px;overflow-y:auto}
+.field .body-edit:focus{border-color:var(--accent)}
+.body-edit a{color:var(--accent);text-decoration:underline}
+.edit-tools{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px}
+.edit-tools .tool{border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:999px;padding:4px 12px;font:500 .8rem Inter,sans-serif;cursor:pointer}
+.edit-tools .tool:hover{border-color:var(--accent)}
+.link-row{display:flex;gap:6px;align-items:center;flex:1;min-width:220px}
+.link-row input{flex:1;min-width:0;border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:999px;padding:5px 12px;font:400 .85rem Inter,sans-serif;outline:0}
 .actions{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
 .actions .btn{padding:11px 18px;font-size:.9rem}
 .btn[disabled]{opacity:.55;cursor:default;transform:none!important;box-shadow:none!important}
@@ -484,7 +493,13 @@ footer{margin-top:auto;padding:28px 0 24px;color:var(--muted);font-size:.88rem}
           <span class="hint-small" id="recipHint" hidden>Each lead gets their own email, starting with their business name.</span>
         </div>
         <div class="field"><label for="eSubject">Subject</label><input id="eSubject" type="text"></div>
-        <div class="field"><label for="eBody">Email</label><textarea id="eBody" class="body-edit"></textarea></div>
+        <div class="field"><label for="eBody">Email</label>
+          <div class="edit-tools">
+            <button type="button" class="tool" id="linkBtn" title="Select words, then add a link">🔗 Link</button>
+            <span class="link-row" id="linkRow" hidden><input id="linkUrl" type="url" placeholder="Paste the link, e.g. https://…" aria-label="Link address"><button type="button" class="tool" id="linkAdd">Add</button><button type="button" class="tool" id="linkRemove" hidden>Remove link</button><button type="button" class="tool" id="linkCancel">Cancel</button></span>
+          </div>
+          <div id="eBody" class="body-edit" contenteditable="true" role="textbox" aria-multiline="true" spellcheck="true"></div>
+        </div>
         <div class="actions">
           <button class="btn btn-accent" type="button" id="sendBtn" hidden>Send</button>
           <button class="btn btn-accent" type="button" id="gmailBtn">Open in Gmail</button>
@@ -1504,14 +1519,28 @@ function renderHot(){
 // ---- recipients: every lead with an email, removable; Send emails them all ----
 function recipients(){
   const sg = current.segments[selected];
-  if (!sg || !Array.isArray(sg.leads)) return [];
+  if (!sg) return [];
   const out = new Set(sg.removed || []);
-  return sg.leads.filter(l => l.email && !out.has(l.email)).map(l => ({ email: l.email, name: l.name }));
+  const found = (Array.isArray(sg.leads) ? sg.leads : []).filter(l => l.email && !out.has(l.email)).map(l => ({ email: l.email, name: l.name }));
+  // People you add by hand go last, without a business name.
+  const seen = new Set(found.map(r => r.email));
+  const extra = (sg.extra || []).filter(e => !seen.has(e) && !out.has(e)).map(e => ({ email: e, name: '' }));
+  return found.concat(extra);
+}
+const validEmail = e => /^[^@\s,;]+@[^@\s,;]+\.[^@\s,;]+$/.test(e);
+function addRecipients(text){
+  const sg = current.segments[selected]; if (!sg) return 0;
+  const add = String(text || '').split(/[\s,;]+/).map(x => x.trim().toLowerCase()).filter(validEmail);
+  if (!add.length) return 0;
+  sg.extra = [...new Set([...(sg.extra || []), ...add])];
+  sg.removed = (sg.removed || []).filter(e => !add.includes(e));
+  if (!current.example) { store.set('analysis', current); saveToHistory(current); }
+  return add.length;
 }
 function renderRecipients(){
   const sg = current.segments[selected];
   const list = recipients(), box = $('recips');
-  const using = !!(sg && Array.isArray(sg.leads) && sg.leads.some(l => l.email));
+  const using = !!(sg && ((Array.isArray(sg.leads) && sg.leads.some(l => l.email)) || (sg.extra || []).length));
   box.hidden = !using; $('recipHint').hidden = !using; $('pEmail').hidden = using;
   $('sendBtn').hidden = !using; $('gmailBtn').hidden = using;
   if (!using) return;
@@ -1522,11 +1551,28 @@ function renderRecipients(){
     const c = document.createElement('span'); c.className = 'recip' + (sent.has(r.email) ? ' sent' : '');
     const t = document.createElement('span'); t.textContent = (sent.has(r.email) ? '✓ ' : '') + r.email; t.title = r.name;
     const x = document.createElement('button'); x.type = 'button'; x.textContent = '×'; x.setAttribute('aria-label', 'Remove ' + r.email);
-    x.addEventListener('click', () => { sg.removed = [...(sg.removed || []), r.email]; renderRecipients(); });
+    x.addEventListener('click', () => {
+      sg.removed = [...(sg.removed || []), r.email];
+      if (!current.example) { store.set('analysis', current); saveToHistory(current); }
+      renderRecipients();
+    });
     c.append(t, x); box.append(c);
   });
+  // Type or paste more addresses at the end of the list.
+  const add = document.createElement('input');
+  add.className = 'recip-add'; add.type = 'email'; add.placeholder = '+ Add an email'; add.setAttribute('aria-label', 'Add an email');
+  const commit = refocus => {
+    const v = add.value;
+    if (!v.trim()) return;
+    if (addRecipients(v)) { add.value = ''; renderRecipients(); if (refocus) { const n = $('recips').querySelector('.recip-add'); n && n.focus(); } }
+    else { $('sendStatus').className = 'status err'; $('sendStatus').textContent = 'That email address doesn’t look right.'; }
+  };
+  add.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ',' || e.key === ';') { e.preventDefault(); commit(true); } });
+  add.addEventListener('paste', () => setTimeout(() => commit(true), 0));
+  add.addEventListener('blur', () => { if (add.isConnected) commit(false); });
+  box.append(add);
   const left = list.filter(r => !sent.has(r.email)).length;
-  $('sendBtn').textContent = !acct.gmail ? 'Connect Gmail to send' : left ? 'Send to ' + left + (left === 1 ? ' lead' : ' leads') : 'All sent ✓';
+  $('sendBtn').textContent = left ? 'Send to ' + left + (left === 1 ? ' lead' : ' leads') : 'All sent ✓';
   $('sendBtn').disabled = !!acct.gmail && !left;
 }
 function sendError(code){
@@ -1548,7 +1594,11 @@ async function sendAll(){
     try {
       const r = await fetch('/api/gmail-start', { headers }); const d = await r.json().catch(() => ({}));
       if (!r.ok) throw { code: d.error };
+      // Keep everything as it is now, and finish sending as soon as Google sends us back.
+      const sgNow = current.segments[selected];
+      if (sgNow && !current.example) { sgNow.subject = $('eSubject').value; sgNow.body = getBody(); }
       store.set('analysis', current); saveToHistory(current); setActive(true);
+      try { sessionStorage.setItem('so_send_after', '1'); } catch {}
       location.href = d.url;
     } catch (e) { st.className = 'status err'; st.textContent = sendError(e && e.code); }
     return;
@@ -1560,7 +1610,7 @@ async function sendAll(){
   const btn = $('sendBtn'); btn.disabled = true; btn.textContent = 'Sending 💸';
   st.className = 'status'; st.textContent = 'Sending ' + list.length + ' emails from ' + acct.gmail + '…';
   try {
-    const r = await fetch('/api/send', { method: 'POST', headers, body: JSON.stringify({ recipients: list, subject: $('eSubject').value, body: $('eBody').value }) });
+    const r = await fetch('/api/send', { method: 'POST', headers, body: JSON.stringify({ recipients: list, subject: $('eSubject').value, body: getBody() }) });
     const d = await r.json().catch(() => ({}));
     if (!r.ok) throw { code: d.error };
     sg.sent = [...sent, ...d.sent];
@@ -1699,10 +1749,109 @@ function previewAnalyze(site, offer){
   }, 700);
 }
 
+// ---- email editor ----
+// The body is kept as plain text where links are written [words](https://…).
+// The editor shows them as real links; the server sends them as clickable links.
+const safeUrl = u => /^(https?:\/\/|mailto:)[^\s"<>]+$/i.test(u) ? u : '';
+function setBody(text){
+  const box = $('eBody'); box.replaceChildren();
+  const re = /\[([^\]\n]+)\]\(([^)\s]+)\)/g; let last = 0, m;
+  text = String(text || '');
+  while ((m = re.exec(text))) {
+    if (m.index > last) box.append(document.createTextNode(text.slice(last, m.index)));
+    const url = safeUrl(m[2]);
+    if (url) { const a = document.createElement('a'); a.href = url; a.textContent = m[1]; box.append(a); }
+    else box.append(document.createTextNode(m[0]));
+    last = re.lastIndex;
+  }
+  if (last < text.length) box.append(document.createTextNode(text.slice(last)));
+}
+// plain = true gives "words (link)" for places that can't show links (Gmail compose, copy).
+function getBody(plain){
+  let out = '';
+  const walk = (node, top) => {
+    for (const n of node.childNodes) {
+      if (n.nodeType === 3) { out += n.nodeValue; continue; }
+      if (n.nodeType !== 1) continue;
+      const tag = n.tagName;
+      if (tag === 'BR') { out += '\n'; continue; }
+      const block = tag === 'DIV' || tag === 'P';
+      if (block && out && !out.endsWith('\n')) out += '\n';
+      if (tag === 'A' && safeUrl(n.getAttribute('href') || '')) {
+        const t = n.textContent, u = n.getAttribute('href');
+        out += plain ? (t === u ? u : t + ' (' + u + ')') : '[' + t.replace(/[\[\]]/g, '') + '](' + u + ')';
+      } else walk(n, false);
+      if (block && n.nextSibling && !out.endsWith('\n')) out += '\n';
+    }
+  };
+  walk($('eBody'), true);
+  return out.replace(/ /g, ' ');
+}
+// Keep edits: every change is saved to the customer type, so it survives leaving the page.
+let saveEditTimer = null;
+function saveEdits(){
+  clearTimeout(saveEditTimer);
+  saveEditTimer = setTimeout(() => {
+    if (typeof current === 'undefined' || current.example) return;
+    const sg = current.segments[selected]; if (!sg) return;
+    sg.subject = $('eSubject').value; sg.body = getBody();
+    store.set('analysis', current);
+    saveToHistory(current);
+  }, 300);
+}
+$('eBody').addEventListener('input', saveEdits);
+$('eSubject').addEventListener('input', saveEdits);
+// Paste as plain text so styles from other pages don't come along.
+$('eBody').addEventListener('paste', e => {
+  e.preventDefault();
+  const t = (e.clipboardData || window.clipboardData).getData('text/plain');
+  document.execCommand('insertText', false, t);
+});
+let linkRange = null, linkEl = null;
+$('linkBtn').addEventListener('mousedown', e => e.preventDefault());
+$('linkBtn').addEventListener('click', () => {
+  const sel = getSelection();
+  linkRange = sel.rangeCount && $('eBody').contains(sel.anchorNode) ? sel.getRangeAt(0).cloneRange() : null;
+  if (!linkRange || linkRange.collapsed) {
+    $('sendStatus').className = 'status'; $('sendStatus').textContent = 'Select the words you want to turn into a link, then press 🔗 Link.';
+    return;
+  }
+  $('sendStatus').textContent = '';
+  linkEl = null; $('linkRemove').hidden = true; $('linkAdd').textContent = 'Add';
+  $('linkRow').hidden = false; $('linkUrl').value = ''; $('linkUrl').focus();
+});
+function addLink(){
+  let url = $('linkUrl').value.trim();
+  if (url && !/^(https?:\/\/|mailto:)/i.test(url)) url = 'https://' + url;
+  if (!safeUrl(url)) { $('linkUrl').focus(); return; }
+  if (linkEl) { linkEl.href = url; linkEl = null; $('linkRow').hidden = true; saveEdits(); return; }
+  if (!linkRange) return;
+  const sel = getSelection(); sel.removeAllRanges(); sel.addRange(linkRange);
+  const a = document.createElement('a'); a.href = url;
+  a.append(linkRange.extractContents()); linkRange.insertNode(a);
+  sel.removeAllRanges(); linkRange = null;
+  $('linkRow').hidden = true; saveEdits();
+}
+$('linkAdd').addEventListener('click', addLink);
+$('linkUrl').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); addLink(); } if (e.key === 'Escape') $('linkRow').hidden = true; });
+$('linkCancel').addEventListener('click', () => { $('linkRow').hidden = true; linkRange = null; linkEl = null; });
+$('linkRemove').addEventListener('click', () => {
+  if (linkEl) { linkEl.replaceWith(...linkEl.childNodes); linkEl = null; saveEdits(); }
+  $('linkRow').hidden = true;
+});
+// Clicking a link inside the editor lets you change or remove it, instead of opening it.
+$('eBody').addEventListener('click', e => {
+  const a = e.target.closest && e.target.closest('a'); if (!a) return;
+  e.preventDefault();
+  linkEl = a; linkRange = null;
+  $('linkRow').hidden = false; $('linkRemove').hidden = false; $('linkAdd').textContent = 'Save';
+  $('linkUrl').value = a.getAttribute('href') || ''; $('linkUrl').focus();
+});
+
 function showEmail(e){
   lastEmail = e;
   $('eSubject').value = e.subject;
-  $('eBody').value = e.body;
+  setBody(e.body);
   $('sendStatus').textContent = '';
 }
 
@@ -1719,7 +1868,7 @@ function gmailError(e){
 }
 $('gmailBtn').addEventListener('click', async () => {
   const st = $('sendStatus');
-  const to = $('pEmail').value.trim(), subject = $('eSubject').value.trim(), body = $('eBody').value.trim();
+  const to = $('pEmail').value.trim(), subject = $('eSubject').value.trim(), body = getBody(true).trim();
   if (!mcp) {
     const u = 'https://mail.google.com/mail/?view=cm&fs=1' + (to ? '&to=' + encodeURIComponent(to) : '') + '&su=' + encodeURIComponent(subject) + '&body=' + encodeURIComponent(body);
     window.open(u, '_blank', 'noopener');
@@ -1740,10 +1889,10 @@ $('gmailBtn').addEventListener('click', async () => {
   } finally { btn.disabled = false; }
 });
 $('copyBtn').addEventListener('click', async () => {
-  const text = 'Subject: ' + $('eSubject').value + '\n\n' + $('eBody').value;
+  const text = 'Subject: ' + $('eSubject').value + '\n\n' + getBody(true);
   const st = $('sendStatus');
   try { await navigator.clipboard.writeText(text); st.className = 'status ok'; st.textContent = 'Copied.'; }
-  catch { $('eBody').select(); st.className = 'status'; st.textContent = 'Press Ctrl+C (or ⌘C) to copy the selected text.'; }
+  catch { const r = document.createRange(); r.selectNodeContents($('eBody')); const sel = getSelection(); sel.removeAllRanges(); sel.addRange(r); st.className = 'status'; st.textContent = 'Press Ctrl+C (or ⌘C) to copy the selected text.'; }
 });
 
 // ---- wiring ----
@@ -1769,6 +1918,20 @@ if (current.offer) $('offer').value = current.offer;
   history.replaceState(null, '', location.pathname + location.hash);
   const msg = { connected: 'Gmail connected. Press Send to email your leads.', cancelled: 'Gmail wasn’t connected.', expired: 'That took too long. Try connecting Gmail again.', error: 'Couldn’t connect Gmail. Try again.' }[g];
   if (msg) { $('sendStatus').className = g === 'connected' ? 'status ok' : 'status err'; $('sendStatus').textContent = msg; }
+  let after = false;
+  try { after = sessionStorage.getItem('so_send_after') === '1'; sessionStorage.removeItem('so_send_after'); } catch {}
+  if (g === 'connected' && after) {
+    // One click: the person pressed Send before connecting, so send now that Gmail is connected.
+    $('sendStatus').className = 'status'; $('sendStatus').textContent = 'Gmail connected. Sending…';
+    const started = Date.now();
+    const tryAfter = async () => {
+      if (!(acct.loaded && acct.gmail)) await loadAccount();
+      if (acct.loaded && acct.gmail && typeof current !== 'undefined' && !current.example) { $('writer').scrollIntoView({ block: 'center' }); sendAll(); }
+      else if (Date.now() - started < 15000) setTimeout(tryAfter, 1500);
+      else { $('sendStatus').className = 'status ok'; $('sendStatus').textContent = 'Gmail connected. Press Send.'; }
+    };
+    setTimeout(tryAfter, 800);
+  }
 })();
 function collapseRefine(){
   const v = $('offer').value.trim();
