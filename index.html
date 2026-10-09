@@ -1267,7 +1267,11 @@ document.getElementById('forgotBtn').addEventListener('click', async () => {
   const st = document.getElementById('authStatus');
   const email = document.getElementById('authEmail').value.trim();
   if (!email) { st.className = 'status err'; st.textContent = 'Type your email first.'; return; }
-  const { error } = await sb.auth.resetPasswordForEmail(email, { redirectTo: location.origin });
+  // Our own reset email (from our domain); Supabase's default only if ours isn't set up.
+  let error = null;
+  const r = await fetch('/api/signup', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'reset', email }) }).catch(() => null);
+  if (!r || r.status === 501) ({ error } = await sb.auth.resetPasswordForEmail(email, { redirectTo: location.origin }));
+  else if (!r.ok) error = { message: r.status === 429 ? 'Too many tries. Wait a minute and try again.' : 'That email doesn’t look right.' };
   st.className = error ? 'status err' : 'status ok';
   st.textContent = error ? error.message : 'Check your inbox for a link to reset your password.';
 });
