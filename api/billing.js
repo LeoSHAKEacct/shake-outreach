@@ -21,19 +21,45 @@ async function planPrice(key) {
 }
 
 // The user's live subscription: the one we stored, else a search by user id.
-async function findSub(user) {
+const LIVE = ["active", "trialing", "past_due"];
+// The user's live subscription. Tries, in order: the id we stored, the stored customer,
+// a search by our user id, then any Stripe customer with the user's email.
+// `trail` records what each step found, so a miss can be explained.
+async function findSub(user, trail = []) {
   const m = user.app_metadata || {};
+  const pick = list => (list || []).find(s => LIVE.includes(s.status));
+  const save = async s => { await updateAppMeta(user, { stripe_sub: s.id, stripe_customer: s.customer }).catch(() => {}); return s; };
   if (m.stripe_sub) {
     try {
       const s = await stripe("subscriptions/" + m.stripe_sub);
-      if (s.status !== "canceled") return s;
-    } catch {}
+      trail.push("stored sub " + s.status);
+      if (LIVE.includes(s.status)) return s;
+    } catch (e) { trail.push("stored sub error"); }
+  } else trail.push("no stored sub");
+  if (m.stripe_customer) {
+    try {
+      const r = await stripe("subscriptions?status=all&limit=10&customer=" + encodeURIComponent(m.stripe_customer));
+      trail.push("stored customer subs " + (r.data || []).length);
+      const s = pick(r.data); if (s) return save(s);
+    } catch { trail.push("stored customer error"); }
+  } else trail.push("no stored customer");
+  try {
+    const q = encodeURIComponent(`metadata['user_id']:'${user.id}'`);
+    const r = await stripe("subscriptions/search?query=" + q);
+    trail.push("search " + (r.data || []).length);
+    const s = pick(r.data); if (s) return save(s);
+  } catch { trail.push("search error"); }
+  if (user.email) {
+    try {
+      const c = await stripe("customers?limit=10&email=" + encodeURIComponent(user.email));
+      trail.push("email customers " + (c.data || []).length);
+      for (const cu of c.data || []) {
+        const r = await stripe("subscriptions?status=all&limit=10&customer=" + encodeURIComponent(cu.id));
+        const s = pick(r.data); if (s) return save(s);
+      }
+    } catch { trail.push("email lookup error"); }
   }
-  const q = encodeURIComponent(`metadata['user_id']:'${user.id}' AND status:'active'`);
-  const r = await stripe("subscriptions/search?query=" + q);
-  const s = r.data && r.data[0];
-  if (s) await updateAppMeta(user, { stripe_sub: s.id, stripe_customer: s.customer });
-  return s || null;
+  return null;
 }
 
 const periodEnd = s => s.current_period_end || (s.items && s.items.data[0] && s.items.data[0].current_period_end) || null;
@@ -59,8 +85,9 @@ async function checkout(req, res, user, key) {
 
 async function change(res, user, key) {
   if (!PLANS[key]) return send(res, 400, { error: "no_plan" });
-  const sub = await findSub(user);
-  if (!sub) return send(res, 400, { error: "no_billing" });
+  const trail = [];
+  const sub = await findSub(user, trail);
+  if (!sub) return send(res, 400, { error: "no_billing", message: "no active subscription found (" + trail.join(", ") + ")" });
   const m = user.app_metadata || {};
   const now = String(m.plan || "trial").toLowerCase();
   const item = sub.items.data[0].id;
@@ -90,8 +117,9 @@ async function change(res, user, key) {
 }
 
 async function cancel(res, user, undo) {
-  const sub = await findSub(user);
-  if (!sub) return send(res, 400, { error: "no_billing" });
+  const trail = [];
+  const sub = await findSub(user, trail);
+  if (!sub) return send(res, 400, { error: "no_billing", message: "no active subscription found (" + trail.join(", ") + ")" });
   const s = await stripe("subscriptions/" + sub.id, { cancel_at_period_end: undo ? "false" : "true" });
   const end = periodEnd(s);
   await updateAppMeta(user, { cancel_at: undo ? null : end, renews_at: end });

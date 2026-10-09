@@ -198,6 +198,8 @@ header.scrolled{border-color:var(--line)}
 .plan ul li::before{content:"✓";color:var(--accent);font-weight:700;margin-right:10px}
 .plan .btn{margin-top:auto}
 .plan .badge{align-self:flex-start;background:var(--accent);color:#fff;font-size:.72rem;font-weight:600;padding:4px 10px;border-radius:999px;margin-bottom:10px}
+.lead-credit{font-size:.75rem;color:var(--muted);margin-top:10px}
+.lead-credit a{color:var(--muted)}
 .beta-note{margin:22px auto 0;text-align:center;font-size:.9rem;color:var(--muted)}
 
 /* real leads */
@@ -461,6 +463,7 @@ footer{margin-top:auto;padding:28px 0 24px;color:var(--muted);font-size:.88rem}
       <div class="leads-body">
         <p class="status" id="leadsStatus"></p>
         <div class="leads-scroll"><table class="ltbl" id="leadsTable"><thead><tr><th>Business</th><th>Email</th><th>Phone</th></tr></thead><tbody></tbody></table></div>
+        <p class="lead-credit" id="leadsCredit" hidden>Business data © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap contributors</a></p>
       </div>
     </div>
 
@@ -715,6 +718,10 @@ footer{margin-top:auto;padding:28px 0 24px;color:var(--muted);font-size:.88rem}
         <div class="profile-row"><span>Credits left</span><span><a href="#billing" id="profileCredits">$50.00</a></span></div>
         <div class="profile-row"><span>Gmail for sending</span><span id="profileGmail">Not connected</span></div>
       </div>
+      <div class="field"><label for="profileAddress">Business address</label>
+        <div class="inline"><input id="profileAddress" type="text" maxlength="200" autocomplete="street-address" placeholder="Street, city, country"><button class="btn btn-ghost" type="button" id="saveAddress">Save</button></div>
+        <small class="muted" style="font-size:.8rem">Added at the bottom of every email you send. Anti-spam laws require it.</small>
+      </div>
       <div class="field"><label for="newPass">New password</label>
         <div class="inline"><input id="newPass" type="password" minlength="6" autocomplete="new-password"><button class="btn btn-ghost" type="button" id="savePass">Change</button></div>
       </div>
@@ -807,6 +814,7 @@ function openProfile(){ location.hash = 'profile'; }
 function fillProfile(){
   const u = session.user;
   if (document.activeElement !== document.getElementById('profileName')) document.getElementById('profileName').value = firstName(u);
+  if (document.activeElement !== document.getElementById('profileAddress')) document.getElementById('profileAddress').value = (u.user_metadata || {}).address || '';
   document.getElementById('profileEmail').textContent = u.email;
   document.getElementById('profileGmail').textContent = acct.gmail || 'Not connected';
   document.getElementById('profilePlan').textContent = acct.paid ? planName(acct.plan) : 'Free trial';
@@ -1074,6 +1082,15 @@ document.getElementById('saveName').addEventListener('click', async () => {
   if (data && data.user) session = { ...session, user: data.user };
   renderAuth(); st.className = 'status ok'; st.textContent = 'Name saved.';
 });
+document.getElementById('saveAddress').addEventListener('click', async () => {
+  const st = document.getElementById('profileStatus');
+  const address = document.getElementById('profileAddress').value.trim();
+  if (address.length < 8) { st.className = 'status err'; st.textContent = 'Type your full business address.'; return; }
+  const { data, error } = await sb.auth.updateUser({ data: { address } });
+  if (error) { st.className = 'status err'; st.textContent = error.message; return; }
+  if (data && data.user) session = { ...session, user: data.user };
+  st.className = 'status ok'; st.textContent = 'Address saved. It goes at the bottom of your emails.';
+});
 document.getElementById('savePass').addEventListener('click', async () => {
   const st = document.getElementById('profileStatus');
   const password = document.getElementById('newPass').value;
@@ -1322,6 +1339,7 @@ async function findLeads(){
     const first = await leadsApi('POST', { query: sg.search || sg.name, location: loc, osm: sg.osm || [] });
     if (first.account) { acct = first.account; renderAccount(); }
     const ticket = first.ticket;
+    sg.leadsSource = ticket ? 'maps' : (first.source || 'maps');
     if (!ticket) sg.leads = first.leads || [];
     const started = Date.now();
     while (ticket) {
@@ -1340,6 +1358,7 @@ async function findLeads(){
     if (selected === segIndex) renderAnalysis();
   }
 }
+const list0 = sg => Array.isArray(sg.leads) ? sg.leads : [];
 function renderLeads(){
   const sg = current.segments[selected];
   const box = $('leadsBox'), tb = document.querySelector('#leadsTable tbody'), st = $('leadsStatus');
@@ -1351,6 +1370,7 @@ function renderLeads(){
   else if (has && sg.leads.length) { st.className = 'status ok'; st.textContent = 'Every lead with an email is added to your email below.'; }
   else if (has) { st.className = 'status err'; st.textContent = 'No leads found there. Try a bigger city or a whole country.'; }
   else st.textContent = '';
+  $('leadsCredit').hidden = !(has && list0(sg).length && sg.leadsSource === 'free');
   $('leadsTitle').textContent = 'Real leads · ' + sg.name + (sg.leadsLoc ? ' in ' + sg.leadsLoc : '');
   const list = has ? sg.leads : [];
   const withEmail = list.filter(l => l.email).length;
@@ -1499,6 +1519,7 @@ function sendError(code){
   switch (code) {
     case 'gmail_not_configured': return 'Sending isn’t switched on yet: the site owner needs to finish the Gmail setup.';
     case 'gmail_not_connected': return 'Connect your Gmail first.';
+    case 'needs_address': return 'Add your business address in your Profile first. The law requires it at the bottom of every email.';
     case 'daily_cap': return 'You’ve reached today’s limit of 50 emails. This protects your inbox from spam filters. Try again tomorrow.';
     case 'auth_required': return 'Sign in to send emails.';
     default: return 'Couldn’t send right now. Try again in a minute.';

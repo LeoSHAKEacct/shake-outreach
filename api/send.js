@@ -25,6 +25,9 @@ export default async function handler(req, res) {
     .filter(r => /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(r.email));
   const unique = [...new Map(list.map(r => [r.email, r])).values()];
   if (!unique.length || !subject || !template.trim()) return send(res, 400, { error: "nothing_to_send" });
+  // Anti-spam law (CAN-SPAM) wants the sender's postal address in every commercial email.
+  const address = clip((user.user_metadata || {}).address, 200);
+  if (!address) return send(res, 400, { error: "needs_address" });
 
   const today = new Date().toISOString().slice(0, 10);
   const sentToday = m.sent_day === today ? Number(m.sent_today || 0) : 0;
@@ -52,7 +55,7 @@ export default async function handler(req, res) {
   const sent = [], failed = [];
   for (const r of batch) {
     const body = template.split("[Business]").join(r.name || "there").split("[First name]").join(r.name ? r.name + " team" : "there")
-      + "\n\n--\nIf this isn't relevant, just reply \"no thanks\" and I won't write again.";
+      + "\n\n--\n" + address + "\nIf this isn't relevant, just reply \"no thanks\" and I won't write again.";
     const raw = Buffer.from(mime({ from: m.gmail.email, to: r.email, subject, body }), "utf8").toString("base64url");
     try {
       const g = await fetch("https://gmail.googleapis.com/gmail/v1/users/me/messages/send", {
