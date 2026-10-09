@@ -1992,20 +1992,26 @@ function holdStart(){
   renderHoldPill();
   if (!hold.on || hold.users > 1) return;
   const go = () => { if (hold.users > 0 && hold.on && !hold.timer) holdMusic(); };
+  // A recorded voice (audio/hold-on.mp3); the browser's own voice only if that file can't play.
+  const say = () => {
+    const u = new SpeechSynthesisUtterance('Hold on, we are looking for what you need.');
+    u.rate = 0.98; u.pitch = 1.05; u.volume = 0.9;
+    u.onend = u.onerror = () => { hold.speaking = false; go(); };
+    speechSynthesis.cancel(); speechSynthesis.speak(u);
+  };
   try {
-    if (window.speechSynthesis) {
-      const u = new SpeechSynthesisUtterance('Hold on, we are looking for what you need.');
-      u.rate = 0.98; u.pitch = 1.05; u.volume = 0.9;
-      hold.speaking = true; u.onend = u.onerror = () => { hold.speaking = false; go(); };
-      speechSynthesis.cancel(); speechSynthesis.speak(u);
-      setTimeout(go, 4000); // in case the voice never reports it finished
-    } else go();
-  } catch { go(); }
+    hold.speaking = true;
+    setTimeout(go, 4000); // in case the voice never reports it finished
+    if (!hold.voice) { hold.voice = new Audio('/audio/hold-on.mp3'); hold.voice.volume = 0.9; }
+    const v = hold.voice; v.currentTime = 0;
+    v.onended = () => { hold.speaking = false; go(); };
+    v.play().catch(() => { if (window.speechSynthesis) say(); else { hold.speaking = false; go(); } });
+  } catch { hold.speaking = false; go(); }
 }
 function holdStop(force){
   hold.users = force ? 0 : Math.max(0, hold.users - 1);
   if (hold.users > 0) return;
-  try { window.speechSynthesis && speechSynthesis.cancel(); } catch {}
+  try { if (hold.voice) hold.voice.pause(); window.speechSynthesis && speechSynthesis.cancel(); } catch {}
   if (hold.ctx && hold.timer) {
     const t = hold.ctx.currentTime;
     hold.master.gain.cancelScheduledValues(t);
