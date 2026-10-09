@@ -38,7 +38,7 @@ export default async function handler(req, res) {
 // Always answers ok, so nobody can probe which emails have accounts.
 const esc = t => String(t).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 async function resetPassword(req, res, key, email) {
-  if (!process.env.RESEND_API_KEY) return send(res, 501, { error: "not_configured" });
+  if (!process.env.POSTMARK_SERVER_TOKEN && !process.env.RESEND_API_KEY) return send(res, 501, { error: "not_configured" });
   if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return send(res, 400, { error: "bad_email" });
   const origin = "https://" + (req.headers["x-forwarded-host"] || req.headers.host);
   const headers = { "Content-Type": "application/json", apikey: key };
@@ -53,7 +53,7 @@ async function resetPassword(req, res, key, email) {
     const link = d.action_link || (d.properties && d.properties.action_link);
     const user = d.user || d;
     if (!link || (user.user_metadata || {}).app !== "shake-outreach") return send(res, 200, { ok: true });
-    const from = process.env.RESEND_FROM || "MyLeads <noreply@myleads.shakeapp.today>";
+    const from = process.env.MAIL_FROM || process.env.RESEND_FROM || "MyLeads <contact@shakeapp.today>";
     const html = `<div style="font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:1.55;color:#16151a;max-width:480px">
 <p style="font-size:22px">🤝</p>
 <p><b>Reset your password</b></p>
@@ -62,14 +62,10 @@ async function resetPassword(req, res, key, email) {
 <p style="color:#7a7782;font-size:13px">If you didn't ask for this, ignore this email; your password stays the same.</p>
 <p style="color:#7a7782;font-size:13px">MyLeads by Shakeapp Inc. · contact@shakeapp.today</p></div>`;
     const text = `Reset your password\n\nSomeone asked to reset the password for your MyLeads account (${email}). If it was you, open this link (it works once):\n${link}\n\nIf you didn't ask for this, ignore this email.\n\nMyLeads by Shakeapp Inc. · contact@shakeapp.today`;
-    const sent = await fetch("https://api.resend.com/emails", {
-      method: "POST", signal: AbortSignal.timeout(8000),
-      headers: { Authorization: "Bearer " + process.env.RESEND_API_KEY, "Content-Type": "application/json" },
-      body: JSON.stringify({ from, to: [email], reply_to: "contact@shakeapp.today", subject: "Reset your MyLeads password", html, text }),
-    }).catch(() => null);
-    // If Resend refuses (e.g. domain not verified yet), fall back to Supabase's own reset email.
+    const sent = await sendMail({ from, to: email, subject: "Reset your MyLeads password", html, text });
+    // If the mail service refuses (e.g. sender not verified yet), fall back to Supabase's own reset email.
     if (!sent || !sent.ok) {
-      console.error("resend failed", sent && sent.status, sent && await sent.text().catch(() => ""));
+      console.error("mail failed", sent && sent.status, sent && await sent.text().catch(() => ""));
       await fetch(SUPABASE_URL.replace(/\/$/, "") + "/auth/v1/recover?redirect_to=" + encodeURIComponent(origin), {
         method: "POST", headers: { "Content-Type": "application/json", apikey: SUPABASE_ANON_KEY },
         body: JSON.stringify({ email }), signal: AbortSignal.timeout(8000),
@@ -77,4 +73,20 @@ async function resetPassword(req, res, key, email) {
     }
   } catch {}
   return send(res, 200, { ok: true });
+}
+
+// Postmark if configured, else Resend. Replies go to contact@shakeapp.today.
+function sendMail({ from, to, subject, html, text }) {
+  if (process.env.POSTMARK_SERVER_TOKEN) {
+    return fetch("https://api.postmarkapp.com/email", {
+      method: "POST", signal: AbortSignal.timeout(8000),
+      headers: { "X-Postmark-Server-Token": process.env.POSTMARK_SERVER_TOKEN, "Content-Type": "application/json", Accept: "application/json" },
+      body: JSON.stringify({ From: from, To: to, ReplyTo: "contact@shakeapp.today", Subject: subject, HtmlBody: html, TextBody: text, MessageStream: "outbound" }),
+    }).catch(() => null);
+  }
+  return fetch("https://api.resend.com/emails", {
+    method: "POST", signal: AbortSignal.timeout(8000),
+    headers: { Authorization: "Bearer " + process.env.RESEND_API_KEY, "Content-Type": "application/json" },
+    body: JSON.stringify({ from, to: [to], reply_to: "contact@shakeapp.today", subject, html, text }),
+  }).catch(() => null);
 }
