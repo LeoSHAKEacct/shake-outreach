@@ -215,6 +215,9 @@ header.scrolled{border-color:var(--line)}
 #fitTable tr.scan td{color:var(--muted);transition:color .2s}
 #fitTable tr.scan .bar span{transition:width .4s ease}
 #fitTable tr.scan:first-child td:first-child{color:var(--ink)}
+.leads-tools{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:4px 0 10px}
+.leads-tools .btn{height:34px;padding:0 14px;font-size:.84rem}
+.leads-tools .muted{font-size:.82rem}
 .lead-credit{font-size:.75rem;color:var(--muted);margin-top:10px}
 .lead-credit a{color:var(--muted)}
 .beta-note{margin:22px auto 0;text-align:center;font-size:.9rem;color:var(--muted)}
@@ -501,6 +504,11 @@ footer{margin-top:auto;padding:28px 0 24px;color:var(--muted);font-size:.88rem}
       <div class="demo-bar"><span style="font-weight:600;color:var(--ink)" id="leadsTitle">Real leads</span><span class="mode" id="leadsCount"></span></div>
       <div class="leads-body">
         <p class="status" id="leadsStatus"></p>
+        <div class="leads-tools" id="leadsTools" hidden>
+          <button class="btn btn-ghost" type="button" id="copyLeads">Copy all</button>
+          <button class="btn btn-ghost" type="button" id="copyEmails">Copy emails</button>
+          <span class="muted" id="copyNote"></span>
+        </div>
         <div class="leads-scroll"><table class="ltbl" id="leadsTable"><thead><tr><th>Business</th><th>Email</th><th>Phone</th></tr></thead><tbody></tbody></table></div>
         <p class="lead-credit" id="leadsCredit" hidden>Business data © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap contributors</a></p>
       </div>
@@ -1543,6 +1551,29 @@ async function findLeads(){
   }
 }
 const list0 = sg => Array.isArray(sg.leads) ? sg.leads : [];
+// Copy leads: "all" is tab-separated with a header row, so it pastes as columns in Sheets/Excel.
+async function copyLeads(kind){
+  const sg = current.segments[selected];
+  const list = (sg && Array.isArray(sg.leads)) ? sg.leads : [];
+  const clean = v => String(v || '').replace(/[\t\r\n]+/g, ' ').trim();
+  const text = kind === 'emails'
+    ? [...new Set(list.map(l => l.email).filter(Boolean))].join(', ')
+    : [['Business', 'Email', 'Phone', 'Website', 'Address'].join('\t'),
+       ...list.map(l => [l.name, l.email, l.phone, l.website, l.address].map(clean).join('\t'))].join('\n');
+  const n = kind === 'emails' ? list.filter(l => l.email).length : list.length;
+  const note = $('copyNote');
+  try {
+    await navigator.clipboard.writeText(text);
+    note.textContent = 'Copied ' + n + (kind === 'emails' ? (n === 1 ? ' email.' : ' emails.') : (n === 1 ? ' lead' : ' leads') + '. Paste into Google Sheets or Excel.');
+  } catch {
+    const ta = document.createElement('textarea'); ta.value = text; document.body.append(ta); ta.select();
+    const ok = document.execCommand('copy'); ta.remove();
+    note.textContent = ok ? 'Copied ' + n + '.' : 'Your browser blocked copying. Try again.';
+  }
+}
+$('copyLeads').addEventListener('click', () => copyLeads('all'));
+$('copyEmails').addEventListener('click', () => copyLeads('emails'));
+
 function renderLeads(){
   const sg = current.segments[selected];
   const box = $('leadsBox'), tb = document.querySelector('#leadsTable tbody'), st = $('leadsStatus');
@@ -1554,6 +1585,7 @@ function renderLeads(){
   else if (has && sg.leads.length) { st.className = 'status ok'; st.textContent = 'Every lead with an email is added to your email below.'; }
   else if (has) { st.className = 'status err'; st.textContent = 'No leads found there. Try a bigger city or a whole country.'; }
   else st.textContent = '';
+  $('leadsTools').hidden = !(has && sg.leads.length) || running;
   $('leadsCredit').hidden = !(has && list0(sg).length && sg.leadsSource === 'free');
   $('leadsTitle').textContent = 'Real leads · ' + sg.name + (sg.leadsLoc ? ' in ' + sg.leadsLoc : '');
   const list = has ? sg.leads : [];
