@@ -446,7 +446,7 @@ footer{margin-top:auto;padding:28px 0 24px;color:var(--muted);font-size:.88rem}
       <div class="history-list" id="historyList"></div>
     </div>
 
-    <div class="action-card app-only" id="actionCard" hidden></div>
+    <div class="action-card" id="actionCard" hidden></div>
 
     <div class="demo" id="demo" hidden>
       <div class="demo-bar"><i></i><i></i><i></i><span class="url" id="demoUrl">myleads.shakeapp.today/?site=bikinifactory.com</span><span class="mode" id="modeTag">Preview</span></div>
@@ -1027,6 +1027,32 @@ function renderHistory(){
   });
 }
 
+// A signed-out visitor who clicks Find real leads or Hot leads signs up first;
+// we remember what they asked for and run it as soon as they're in.
+function setPending(action, loc){
+  try { localStorage.setItem('so_pending', JSON.stringify({ action, loc, selected, at: Date.now() })); } catch {}
+  if (typeof current !== 'undefined') store.set('analysis', current);
+  store.set('selected', selected);
+  if (loc) store.set('loc', loc);
+}
+function takePending(){
+  let p = null;
+  try { p = JSON.parse(localStorage.getItem('so_pending') || 'null'); localStorage.removeItem('so_pending'); } catch {}
+  return p && Date.now() - p.at < 3600 * 1000 ? p : null;
+}
+function resumePending(){
+  if (!session || typeof current === 'undefined' || current.example) return;
+  const p = takePending(); if (!p) return;
+  if (p.selected >= 0 && p.selected < current.segments.length) selected = p.selected;
+  setActive(true); saveToHistory(current); renderHistory();
+  $('demo').hidden = false; renderAnalysis();
+  if ($('leadLoc') && p.loc) $('leadLoc').value = p.loc;
+  setTimeout(() => {
+    $('actionCard').scrollIntoView({ behavior: 'smooth', block: 'center' });
+    if (p.action === 'hot') findHot(); else findLeads();
+  }, 300);
+}
+
 function renderAuth(){
   const on = authOn, inn = !!session;
   document.getElementById('signInBtn').hidden = !on || inn;
@@ -1046,6 +1072,7 @@ function renderAuth(){
   renderHistory();
   route();
   if (inn && !acct.loadedFor) { acct.loadedFor = session.user.id; loadAccount(); }
+  if (inn) resumePending();
   if (inn) {
     const n = firstName(session.user);
     document.getElementById('appHello').textContent = 'Hi ' + n + ' 👋';
@@ -1363,10 +1390,10 @@ async function leadsApi(method, pathOrBody){
 }
 async function findLeads(){
   if (leadRun) return;
-  if (!session) { openAuth('up', 'Create a free account to get real leads. You get 500 free leads.'); return; }
   const loc = ($('leadLoc') && $('leadLoc').value.trim()) || '';
   const segIndex = selected, sg = current.segments[segIndex];
   if (!loc) { sg.leadsError = leadsError('no_location'); renderLeads(); $('leadLoc').focus(); return; }
+  if (!session) { setPending('leads', loc); openAuth('up', 'Create a free account to see these leads. You get 500 free leads.'); return; }
   store.set('loc', loc);
   sg.leads = []; sg.leadsLoc = loc; sg.leadsError = '';
   leadRun = { segIndex, msg: 'Finding 💸 real ' + sg.name.toLowerCase() + ' in ' + loc + '. This can take up to a minute or two.' };
@@ -1445,7 +1472,7 @@ async function hotApi(method, path, body){
 }
 async function findHot(){
   if (hotRun) return;
-  if (!session) { openAuth('up', 'Create a free account. Hot leads are free for your first week.'); return; }
+  if (!session) { setPending('hot', ($('leadLoc') && $('leadLoc').value.trim()) || ''); openAuth('up', 'Create a free account to see who’s asking right now. Hot leads are free for your first week.'); return; }
   const segIndex = selected, sg = current.segments[segIndex];
   const loc = ($('leadLoc') && $('leadLoc').value.trim()) || '';
   if (loc) store.set('loc', loc);
