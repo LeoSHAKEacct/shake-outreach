@@ -1,4 +1,4 @@
-import { SUPABASE_URL } from "./config.js";
+import { SUPABASE_URL, SUPABASE_ANON_KEY } from "./config.js";
 import { rateLimited, send, readBody, clip } from "./_claude.js";
 
 // Creates an already-confirmed account so sign-up works without a confirmation email.
@@ -62,11 +62,19 @@ async function resetPassword(req, res, key, email) {
 <p style="color:#7a7782;font-size:13px">If you didn't ask for this, ignore this email; your password stays the same.</p>
 <p style="color:#7a7782;font-size:13px">MyLeads by Shakeapp Inc. · contact@shakeapp.today</p></div>`;
     const text = `Reset your password\n\nSomeone asked to reset the password for your MyLeads account (${email}). If it was you, open this link (it works once):\n${link}\n\nIf you didn't ask for this, ignore this email.\n\nMyLeads by Shakeapp Inc. · contact@shakeapp.today`;
-    await fetch("https://api.resend.com/emails", {
+    const sent = await fetch("https://api.resend.com/emails", {
       method: "POST", signal: AbortSignal.timeout(8000),
       headers: { Authorization: "Bearer " + process.env.RESEND_API_KEY, "Content-Type": "application/json" },
       body: JSON.stringify({ from, to: [email], reply_to: "contact@shakeapp.today", subject: "Reset your MyLeads password", html, text }),
-    });
+    }).catch(() => null);
+    // If Resend refuses (e.g. domain not verified yet), fall back to Supabase's own reset email.
+    if (!sent || !sent.ok) {
+      console.error("resend failed", sent && sent.status, sent && await sent.text().catch(() => ""));
+      await fetch(SUPABASE_URL.replace(/\/$/, "") + "/auth/v1/recover?redirect_to=" + encodeURIComponent(origin), {
+        method: "POST", headers: { "Content-Type": "application/json", apikey: SUPABASE_ANON_KEY },
+        body: JSON.stringify({ email }), signal: AbortSignal.timeout(8000),
+      }).catch(() => {});
+    }
   } catch {}
   return send(res, 200, { ok: true });
 }
