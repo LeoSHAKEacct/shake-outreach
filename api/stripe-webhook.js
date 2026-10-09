@@ -11,6 +11,8 @@ async function rawBody(req) {
   return Buffer.concat(chunks).toString("utf8");
 }
 
+const periodEnd = s => s.current_period_end || (s.items && s.items.data[0] && s.items.data[0].current_period_end) || null;
+
 async function setPlan(userId, patch) {
   const user = userId && await getUserById(userId);
   if (!user) return;
@@ -29,9 +31,11 @@ export default async function handler(req, res) {
     if (event.type === "checkout.session.completed" && o.mode === "subscription") {
       const key = (o.metadata || {}).plan;
       if (!PLANS[key]) return send(res, 200, { ok: true });
+      let renews = null;
+      try { renews = periodEnd(await stripe("subscriptions/" + o.subscription)); } catch {}
       await setPlan(o.client_reference_id || (o.metadata || {}).user_id, {
         plan: key, plan_credits: PLANS[key].credits, credits_used: 0, pending_plan: null, cancel_at: null,
-        stripe_customer: o.customer, stripe_sub: o.subscription,
+        stripe_customer: o.customer, stripe_sub: o.subscription, renews_at: renews,
       });
     } else if (event.type === "invoice.paid" && o.billing_reason === "subscription_cycle") {
       // New month: the plan on the subscription now (a downgrade lands here) and fresh credits.
