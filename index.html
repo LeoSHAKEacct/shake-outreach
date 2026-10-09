@@ -235,6 +235,9 @@ body[data-page] .hero{display:none}
 .credit-chip{cursor:pointer;border:0;font-family:inherit}
 
 /* recipients */
+.addr-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.addr-row input{flex:1;min-width:220px;border:1px solid var(--line);background:var(--bg);color:var(--ink);border-radius:999px;padding:10px 16px;font:400 .93rem Inter,sans-serif;outline:0}
+.addr-row input:focus{border-color:var(--accent)}
 .recip-add{flex:1;min-width:180px;border:0;background:transparent;color:var(--ink);font:400 .88rem Inter,sans-serif;padding:5px 6px;outline:0}
 .recips{display:flex;flex-wrap:wrap;gap:6px;padding:8px;border:1px solid var(--line);background:var(--bg);border-radius:12px;max-height:140px;overflow:auto}
 .recip{display:inline-flex;align-items:center;gap:6px;background:var(--card);border:1px solid var(--line);border-radius:999px;padding:4px 6px 4px 10px;font-size:.82rem;max-width:100%}
@@ -506,6 +509,10 @@ footer{margin-top:auto;padding:28px 0 24px;color:var(--muted);font-size:.88rem}
           <button class="btn btn-ghost" type="button" id="copyBtn">Copy</button>
         </div>
         <p class="status" id="sendStatus"></p>
+        <div class="addr-row" id="addrRow" hidden>
+          <input id="addrInline" type="text" maxlength="200" autocomplete="street-address" placeholder="Your business address: street, city, country">
+          <button class="btn btn-accent" type="button" id="addrSave">Save and send</button>
+        </div>
       </div>
     </div>
   </div>
@@ -1579,7 +1586,7 @@ function sendError(code){
   switch (code) {
     case 'gmail_not_configured': return 'Sending isn’t switched on yet: the site owner needs to finish the Gmail setup.';
     case 'gmail_not_connected': return 'Connect your Gmail first.';
-    case 'needs_address': return 'Add your business address in your Profile first. The law requires it at the bottom of every email.';
+    case 'needs_address': return 'Add your business address once. The law requires it at the bottom of every email.';
     case 'daily_cap': return 'You’ve reached today’s limit of 50 emails. This protects your inbox from spam filters. Try again tomorrow.';
     case 'auth_required': return 'Sign in to send emails.';
     default: return 'Couldn’t send right now. Try again in a minute.';
@@ -1600,7 +1607,10 @@ async function sendAll(){
       store.set('analysis', current); saveToHistory(current); setActive(true);
       try { sessionStorage.setItem('so_send_after', '1'); } catch {}
       location.href = d.url;
-    } catch (e) { st.className = 'status err'; st.textContent = sendError(e && e.code); }
+    } catch (e) {
+    st.className = 'status err'; st.textContent = sendError(e && e.code);
+    if (e && e.code === 'needs_address') { $('addrRow').hidden = false; $('addrInline').focus(); }
+  }
     return;
   }
   const sg = current.segments[selected];
@@ -1847,6 +1857,20 @@ $('eBody').addEventListener('click', e => {
   $('linkRow').hidden = false; $('linkRemove').hidden = false; $('linkAdd').textContent = 'Save';
   $('linkUrl').value = a.getAttribute('href') || ''; $('linkUrl').focus();
 });
+
+$('addrSave').addEventListener('click', async () => {
+  const address = $('addrInline').value.trim();
+  if (address.length < 8) { $('sendStatus').className = 'status err'; $('sendStatus').textContent = 'Type your full business address.'; $('addrInline').focus(); return; }
+  $('addrSave').disabled = true;
+  const { data, error } = await sb.auth.updateUser({ data: { address } });
+  $('addrSave').disabled = false;
+  if (error) { $('sendStatus').className = 'status err'; $('sendStatus').textContent = error.message; return; }
+  if (data && data.user) session = { ...session, user: data.user };
+  await freshToken(true); // the server reads the address from a fresh login token
+  $('addrRow').hidden = true;
+  sendAll();
+});
+$('addrInline').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); $('addrSave').click(); } });
 
 function showEmail(e){
   lastEmail = e;
