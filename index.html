@@ -391,7 +391,7 @@ footer{margin-top:auto;padding:28px 0 24px;color:var(--muted);font-size:.88rem}
       <a href="#faq">FAQ</a>
     </nav>
     <div class="nav-right">
-      <button class="credit-chip" type="button" id="creditChip" hidden>$50.00 credits</button>
+      <button class="credit-chip" type="button" id="creditChip" hidden>500 leads</button>
       <button class="user-btn" type="button" id="profileBtn" hidden><span class="avatar" id="avatar"></span><span id="userName"></span></button>
       <button class="btn btn-ghost" type="button" id="signInBtn" hidden>Sign in</button>
       <a href="#start" class="btn btn-dark" id="getStarted">Get started</a>
@@ -646,7 +646,7 @@ footer{margin-top:auto;padding:28px 0 24px;color:var(--muted);font-size:.88rem}
     <div class="center">
       <span class="eyebrow">Pricing</span>
       <h2>Start free. <em>Grow when it pays.</em></h2>
-      <p class="lead">Every new account gets $50 in credits to try it on real prospects.</p>
+      <p class="lead">Every new account gets 500 free leads to try it on real prospects.</p>
     </div>
     <div class="plans">
       <div class="card plan">
@@ -669,7 +669,7 @@ footer{margin-top:auto;padding:28px 0 24px;color:var(--muted);font-size:.88rem}
         <button class="btn btn-ghost plan-btn" type="button">Start free</button>
       </div>
     </div>
-    <p class="beta-note">Every new account starts with $50 in free credit. No card needed to try it.</p>
+    <p class="beta-note">Every new account starts with 500 free leads. No card needed to try it.</p>
   </div>
 </section>
 
@@ -715,7 +715,7 @@ footer{margin-top:auto;padding:28px 0 24px;color:var(--muted);font-size:.88rem}
       <div class="profile-rows">
         <div class="profile-row"><span>Email</span><span id="profileEmail"></span></div>
         <div class="profile-row"><span>Plan</span><span id="profilePlan">Free trial</span></div>
-        <div class="profile-row"><span>Credits left</span><span><a href="#billing" id="profileCredits">$50.00</a></span></div>
+        <div class="profile-row"><span>Leads left</span><span><a href="#billing" id="profileCredits">500</a></span></div>
         <div class="profile-row"><span>Gmail for sending</span><span id="profileGmail">Not connected</span></div>
       </div>
       <div class="field"><label for="profileAddress">Business address</label>
@@ -734,17 +734,15 @@ footer{margin-top:auto;padding:28px 0 24px;color:var(--muted);font-size:.88rem}
 <section class="page" id="billingPage" hidden>
   <div class="wrap page-wrap">
     <button class="back" type="button" data-back>← Back</button>
-    <h2>Credits &amp; plans</h2>
+    <h2>Leads &amp; plans</h2>
     <div class="page-card">
-      <div class="balance"><span class="big" id="billLeft">$50.00</span><span class="muted">left of your <span id="billStart">$50.00</span> <span id="billKind">free trial credit</span></span></div>
+      <div class="balance"><span class="big" id="billLeft">500</span><span class="muted">leads left of your <span id="billStart">500</span> <span id="billKind">free trial leads</span></span></div>
       <div class="meter"><span id="billBar" style="width:100%"></span></div>
       <div class="profile-rows">
-        <div class="profile-row"><span>Used so far</span><span id="billUsed">$0.00</span></div>
         <div class="profile-row"><span>Leads with email found</span><span id="billLeads">0</span></div>
         <div class="profile-row"><span>Emails sent</span><span id="billSent">0</span></div>
-        <div class="profile-row"><span>Price per lead with email</span><span id="billPrice">$0.10</span></div>
       </div>
-      <p class="muted">Finding customer types and writing emails is free. You only pay for leads that come with an email, so <span id="billCovers">$50 covers about 500 leads</span>.</p>
+      <p class="muted">Finding customer types and writing emails is unlimited. Only leads that come with an email count toward your leads.</p>
       <p class="status" id="billNote"></p>
       <div class="plan-manage" id="planManage" hidden>
         <span class="grow" id="planLine"></span>
@@ -818,12 +816,17 @@ function fillProfile(){
   document.getElementById('profileEmail').textContent = u.email;
   document.getElementById('profileGmail').textContent = acct.gmail || 'Not connected';
   document.getElementById('profilePlan').textContent = acct.paid ? planName(acct.plan) : 'Free trial';
-  document.getElementById('profileCredits').textContent = money(acct.credits_left);
+  document.getElementById('profileCredits').textContent = num(leadsLeft());
 }
 function closeProfile(){ if (location.hash === '#profile') location.hash = ''; }
 
 // ---- account (credits) ----
 let acct = { credits_left: 50, credits_used: 0, start_credits: 50, leads_found: 0, emails_sent: 0, lead_price: 0.1, plan: 'trial', gmail: '', tracked: false };
+// Plans are shown to customers as leads, not dollars.
+const leadsOf = d => Math.max(0, Math.floor(Number(d || 0) / (acct.lead_price || 0.1) + 1e-9));
+const leadsLeft = () => leadsOf(acct.credits_left);
+const leadsTotal = () => leadsOf(acct.start_credits);
+const num = n => Number(n || 0).toLocaleString('en-US');
 function money(n){ return '$' + Number(n || 0).toFixed(2); }
 async function loadAccount(){
   if (!session) return;
@@ -833,18 +836,15 @@ async function loadAccount(){
   } catch {}
 }
 function renderAccount(){
-  document.getElementById('creditChip').textContent = money(acct.credits_left) + ' credits';
-  document.getElementById('billLeft').textContent = money(acct.credits_left);
-  document.getElementById('billStart').textContent = money(acct.start_credits);
-  document.getElementById('billUsed').textContent = money(acct.credits_used);
-  document.getElementById('billLeads').textContent = acct.leads_found;
-  document.getElementById('billSent').textContent = acct.emails_sent;
-  document.getElementById('billPrice').textContent = money(acct.lead_price);
+  document.getElementById('creditChip').textContent = num(leadsLeft()) + ' leads';
+  document.getElementById('billLeft').textContent = num(leadsLeft());
+  document.getElementById('billStart').textContent = num(leadsTotal());
+  document.getElementById('billLeads').textContent = num(acct.leads_found);
+  document.getElementById('billSent').textContent = num(acct.emails_sent);
   document.getElementById('billBar').style.width = Math.max(0, Math.min(100, 100 * acct.credits_left / acct.start_credits)) + '%';
   const plan = String(acct.plan || 'trial').toLowerCase();
-  document.getElementById('billKind').textContent = acct.paid ? 'monthly ' + plan.charAt(0).toUpperCase() + plan.slice(1) + ' credit' : 'free trial credit';
+  document.getElementById('billKind').textContent = acct.paid ? 'monthly ' + plan.charAt(0).toUpperCase() + plan.slice(1) + ' leads' : 'free trial leads';
   document.getElementById('billNote').textContent = '';
-  document.getElementById('billCovers').textContent = money(acct.start_credits).replace('.00', '') + ' covers about ' + Math.round(acct.start_credits / acct.lead_price).toLocaleString('en-US') + ' leads';
   renderPlans();
   if (session) fillProfile();
   if (typeof renderRecipients === 'function' && typeof current !== 'undefined') renderRecipients();
@@ -929,7 +929,7 @@ document.querySelectorAll('.activate').forEach(b => b.addEventListener('click', 
   if (k !== now) {
     const up = RANK[k] > RANK[now];
     const text = up
-      ? 'Upgrade to ' + planName(k) + ' now: you pay only the difference for the rest of this month, and your credit goes up today.'
+      ? 'Upgrade to ' + planName(k) + ' now: you pay only the difference for the rest of this month, and your leads go up today.'
       : 'Downgrade to ' + planName(k) + ': no payment now. You keep ' + planName(now) + ' until ' + day(acct.renews_at) + ', then pay ' + money(PLAN_PRICE[k]).replace('.00', '') + '/month.';
     if (!confirmTap(b, text, up ? 'Confirm upgrade' : 'Confirm downgrade')) return;
   }
@@ -1101,7 +1101,7 @@ document.getElementById('savePass').addEventListener('click', async () => {
   if (!error) document.getElementById('newPass').value = '';
 });
 document.querySelectorAll('.plan-btn').forEach(b => b.addEventListener('click', () => {
-  if (authOn && !session) openAuth('up', 'Create your free account. You get $50 in credits.');
+  if (authOn && !session) openAuth('up', 'Create your free account. You get 500 free leads.');
   else $('site').focus();
 }));
 for (const id of ['getStarted', 'mGetStarted']) document.getElementById(id).addEventListener('click', e => {
@@ -1306,7 +1306,7 @@ function leadsError(code){
   switch (code) {
     case 'no_place': return 'Couldn’t find that place. Try “City, Country”.';
     case 'free_source_busy': return 'The free lead source is busy right now. Try again in a minute.';
-    case 'no_credits': return 'You’re out of credits. See Credits & plans to keep going.';
+    case 'no_credits': return 'You’ve used all your leads. See Leads & plans to get more.';
     case 'missing_apify': return 'Lead search isn’t switched on yet: the site owner needs to add the Apify token in Vercel.';
     case 'apify_credits': return 'The lead finder is out of credits. Try again later.';
     case 'rate_limited': return 'Too many lead searches. Wait a few minutes and try again.';
@@ -1327,7 +1327,7 @@ async function leadsApi(method, pathOrBody){
 }
 async function findLeads(){
   if (leadRun) return;
-  if (!session) { openAuth('up', 'Create a free account to get real leads. You get $50 in credits.'); return; }
+  if (!session) { openAuth('up', 'Create a free account to get real leads. You get 500 free leads.'); return; }
   const loc = ($('leadLoc') && $('leadLoc').value.trim()) || '';
   const segIndex = selected, sg = current.segments[segIndex];
   if (!loc) { sg.leadsError = leadsError('no_location'); renderLeads(); $('leadLoc').focus(); return; }
@@ -1393,7 +1393,7 @@ function renderLeads(){
 let hotRun = null;
 function hotError(code){
   switch (code) {
-    case 'hot_trial_over': return 'Your free week of hot leads is over. See Credits & plans to keep them coming.';
+    case 'hot_trial_over': return 'Your free week of hot leads is over. See Leads & plans to keep them coming.';
     case 'missing_apify': return 'Hot leads aren’t switched on yet: the site owner needs to add the Apify token.';
     case 'rate_limited': return 'Too many hot lead searches. Wait a few minutes and try again.';
     case 'auth_required': return 'Sign in to find hot leads.';
