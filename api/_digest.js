@@ -1,7 +1,7 @@
 import crypto from "node:crypto";
 import { SUPABASE_URL } from "./config.js";
 import { send, readBody, clip } from "./_claude.js";
-import { adminHeaders, isPaid, hotDaysLeft, updateAppMeta, unseal } from "./_account.js";
+import { adminHeaders, isPaid, hotDaysLeft, updateAppMeta, unseal, watchLimitFor, isOwner } from "./_account.js";
 import { writeQueries, startHotRuns, collectRuns } from "./_hot_core.js";
 import { scorePosts } from "./_hot_score.js";
 
@@ -11,11 +11,11 @@ import { scorePosts } from "./_hot_score.js";
 const BUDGET_MS = 50000;   // stay under the 60s function limit
 const MAX_ITEMS = 10;
 
-const eligible = user => isPaid(user) || (hotDaysLeft(user) || 0) > 0;
+const eligible = user => isOwner(user) || isPaid(user) || (hotDaysLeft(user) || 0) > 0;
 const hash = url => crypto.createHash("sha1").update(url).digest("base64url").slice(0, 12);
 
 // Each user can have several weekly emails (one per customer type + place), by plan.
-export const watchLimit = user => ({ pro: 3, growth: 2 })[String((user.app_metadata || {}).plan || "").toLowerCase()] || 1;
+export const watchLimit = user => watchLimitFor(user);
 export function watchList(m) {
   if (Array.isArray(m.hot_watches)) return m.hot_watches.filter(w => w && w.on);
   return m.hot_watch && m.hot_watch.on ? [m.hot_watch] : [];   // older accounts had a single one

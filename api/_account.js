@@ -21,6 +21,10 @@ export const startCredits = user => {
   return isPaid(user || {}) ? Number(m.plan_credits || PLANS[String(m.plan).toLowerCase()].credits) : START_CREDITS;
 };
 export const HOT_TRIAL_DAYS = 7;
+// Site owners skip plan limits (e.g. weekly hot-lead emails). Add more in OWNER_EMAILS, comma-separated.
+const OWNERS = (process.env.OWNER_EMAILS || "leoneltelesmeneses@gmail.com").toLowerCase().split(",").map(s => s.trim()).filter(Boolean);
+export const isOwner = user => Boolean(user && user.email && OWNERS.includes(String(user.email).toLowerCase()));
+export const watchLimitFor = user => isOwner(user) ? 50 : ({ pro: 3, growth: 2 })[String(((user && user.app_metadata) || {}).plan || "").toLowerCase()] || 1;
 export const TRIAL_DAYS = 15;          // the signup credit expires after this
 // One-time top-ups: always priced above the plan rate per lead, so plans stay the better deal.
 export const TOPUPS = {
@@ -82,7 +86,7 @@ export function account(user) {
     hot_days_left: user ? hotDaysLeft(user) : 0,
     hot_watches: (Array.isArray(m.hot_watches) ? m.hot_watches : (m.hot_watch ? [m.hot_watch] : [])).filter(w => w && w.on)
       .map(w => ({ segment: w.segment, location: w.location, last: w.last ? { at: w.last.at, count: w.last.count, delivered: w.last.delivered } : null })),
-    hot_watch_limit: ({ pro: 3, growth: 2 })[String(m.plan || "").toLowerCase()] || 1,
+    hot_watch_limit: watchLimitFor(user),
     tracked: tracking(),
   };
 }
