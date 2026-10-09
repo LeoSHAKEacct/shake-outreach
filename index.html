@@ -188,6 +188,7 @@ header.scrolled{border-color:var(--line)}
 .tabs button.on{background:var(--card);color:var(--ink);box-shadow:0 1px 3px rgba(0,0,0,.08)}
 .muted{color:var(--muted);font-size:.9rem}
 .google-btn{width:100%;background:var(--card)}
+.gsi-btn{display:flex;justify-content:center;min-height:44px}
 .or{display:flex;align-items:center;gap:12px;color:var(--muted);font-size:.8rem}
 .or::before,.or::after{content:"";flex:1;height:1px;background:var(--line)}
 .linkish{background:none;border:0;padding:0;color:var(--accent);font:500 .86rem Inter,sans-serif;cursor:pointer;justify-self:start}
@@ -822,6 +823,7 @@ footer{margin-top:auto;padding:28px 0 24px;color:var(--muted);font-size:.88rem}
     <h3 id="authTitle">Create your free account</h3>
     <p class="muted" id="authNote">Run Shake Outreach on your own website.</p>
     <button class="btn btn-ghost google-btn" type="button" id="googleBtn"><svg viewBox="0 0 48 48" width="18" height="18" aria-hidden="true"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.9 1.2 8 3.1l5.7-5.7C34.1 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.3-.4-3.5z"/><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.9 1.2 8 3.1l5.7-5.7C34.1 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/><path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.1 26.7 36 24 36c-5.2 0-9.6-3.3-11.3-8l-6.5 5C9.5 39.6 16.2 44 24 44z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.2 4.2-4.1 5.6l6.2 5.2C37 39.2 44 34 44 24c0-1.3-.1-2.3-.4-3.5z"/></svg>Continue with Google</button>
+    <div class="gsi-btn" id="gsiBtn" hidden></div>
     <div class="or" id="orLine"><span>or with email</span></div>
     <form class="fields" id="authForm">
       <div class="field" id="nameField"><label for="authName">Your first name</label><input id="authName" type="text" autocomplete="given-name" maxlength="80"></div>
@@ -836,7 +838,7 @@ footer{margin-top:auto;padding:28px 0 24px;color:var(--muted);font-size:.88rem}
 
 <script>
 // ---- accounts (Supabase) ----
-let sb = null, session = null, authOn = false, authMode = 'up', googleOn = false;
+let sb = null, session = null, authOn = false, authMode = 'up', googleOn = false, gsiReady = false;
 const SUPABASE_JS = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js';
 
 function loadScript(src){
@@ -1133,7 +1135,8 @@ function setAuthMode(m, note){
   document.getElementById('tabIn').classList.toggle('on', m === 'in');
   document.getElementById('authTabs').hidden = m === 'reset';
   // Google button shows only when the Google provider is switched on in Supabase
-  document.getElementById('googleBtn').hidden = m === 'reset';
+  document.getElementById('googleBtn').hidden = m === 'reset' || gsiReady;
+  document.getElementById('gsiBtn').hidden = m === 'reset' || !gsiReady;
   document.getElementById('orLine').hidden = m === 'reset';
   document.getElementById('emailField').hidden = m === 'reset';
   document.getElementById('nameField').hidden = m !== 'up';
@@ -1150,6 +1153,31 @@ function openAuth(m, note){
 }
 function closeAuth(){ document.getElementById('authModal').hidden = true; }
 
+// Google's own button: the Google window then names our site (myleads.shakeapp.today), not Supabase.
+// Google gives us a signed ID token; Supabase checks it and signs the person in.
+async function setupGoogleButton(clientId){
+  try { await loadScript('https://accounts.google.com/gsi/client'); } catch { return; }
+  if (!window.google || !google.accounts || !google.accounts.id) return;
+  const raw = Array.from(crypto.getRandomValues(new Uint8Array(16)), b => b.toString(16).padStart(2, '0')).join('');
+  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(raw));
+  const hashed = Array.from(new Uint8Array(digest), b => b.toString(16).padStart(2, '0')).join('');
+  google.accounts.id.initialize({
+    client_id: clientId, nonce: hashed, use_fedcm_for_button: true,
+    callback: async ({ credential }) => {
+      const st = document.getElementById('authStatus');
+      st.className = 'status'; st.textContent = 'Signing you in…';
+      const { error } = await sb.auth.signInWithIdToken({ provider: 'google', token: credential, nonce: raw });
+      if (error) { st.className = 'status err'; st.textContent = error.message; return; }
+      st.textContent = ''; closeAuth();
+    },
+  });
+  const box = document.getElementById('gsiBtn');
+  google.accounts.id.renderButton(box, { type: 'standard', theme: 'outline', size: 'large', text: 'continue_with', shape: 'pill', logo_alignment: 'center', width: Math.min(400, Math.max(240, box.parentElement.clientWidth || 320)) });
+  gsiReady = true;
+  document.getElementById('googleBtn').hidden = true;
+  box.hidden = authMode === 'reset';
+}
+
 async function initAuth(){
   let c = null;
   try { const r = await fetch('/api/config'); if (r.ok) c = await r.json(); } catch {}
@@ -1162,6 +1190,7 @@ async function initAuth(){
     googleOn = !!(st.external && st.external.google);
   } catch {}
   authOn = true;
+  if (googleOn && c.googleClientId) setupGoogleButton(c.googleClientId);
   const { data } = await sb.auth.getSession();
   session = data.session;
   sb.auth.onAuthStateChange((event, s) => {

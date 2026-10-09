@@ -8,6 +8,8 @@ export default function handler(req, res) {
   res.setHeader("Cache-Control", "public, max-age=300");
   res.end(JSON.stringify({
     supabaseUrl: SUPABASE_URL,
-    supabaseAnonKey: SUPABASE_ANON_KEY
+    supabaseAnonKey: SUPABASE_ANON_KEY,
+    // Public OAuth client id, for Google's own sign-in button (shows our domain, not Supabase's).
+    googleClientId: process.env.GOOGLE_CLIENT_ID || ""
   }));
 }
