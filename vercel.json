@@ -17,5 +17,6 @@
       "source": "/api/health",
       "destination": "/api/config?health=1"
     }
-  ]
+  ],
+  "cleanUrls": true
 }
