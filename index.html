@@ -1611,7 +1611,7 @@ async function findHot(){
       hotRun.msg = 'Reading ' + res.posts.length + ' recent posts…';
       if (selected === segIndex) renderHot();
     }
-    sg.hot.posts = res.posts;
+    sg.hot.posts = res.posts; sg.hot.sources = res.sources || null;
     if (res.posts.length) {
       hotRun.msg = 'Picking the people who actually want to buy…';
       if (selected === segIndex) renderHot();
@@ -1670,6 +1670,19 @@ $('watchBtn').addEventListener('click', async () => {
   renderWatch(sg, h, false); loadAccount();
 });
 
+// Say what actually happened when no hot leads came back.
+function hotEmptyText(h){
+  const src = h.sources || {};
+  const ok = s => s && (s.status === 'SUCCEEDED' || s.count > 0);
+  const failed = ['Reddit', 'X'].filter(k => src[k] && !ok(src[k]));
+  const read = (h.posts || []).length;
+  const where = h.loc ? ' in ' + h.loc : '';
+  if (read) return 'We read ' + read + ' recent posts on Reddit and X' + where + ', but nobody was asking to buy this yet.'
+    + (failed.length ? ' (' + failed.join(' and ') + ' didn’t answer this time.)' : '') + ' Try another customer type, or turn on the weekly email to catch them when they post.';
+  if (failed.length === 2) return 'We couldn’t reach Reddit or X right now. Try again in a few minutes.';
+  return 'No recent posts about this on Reddit or X' + where + (failed.length ? ' (' + failed[0] + ' didn’t answer this time)' : '') + '. Try a wider place, like the whole country, or another customer type.';
+}
+
 function renderHot(){
   const sg = current.segments[selected];
   const box = $('hotBox'), list = $('hotList'), st = $('hotStatus');
@@ -1684,7 +1697,7 @@ function renderHot(){
   if (running) { st.className = 'status'; st.textContent = hotRun.msg; }
   else if (h && h.error) { st.className = 'status err'; st.textContent = h.error; }
   else if (matches.length) { st.className = 'status ok'; st.textContent = 'Reply on their post while it’s fresh. We wrote a reply for each.'; }
-  else if (h) { st.className = 'status err'; st.textContent = 'Nobody asking for this right now. Try again later or another customer type.'; }
+  else if (h) { st.className = 'status err'; st.textContent = hotEmptyText(h); }
   renderWatch(sg, h, running);
   list.replaceChildren();
   matches.forEach(m => {

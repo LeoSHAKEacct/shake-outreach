@@ -53,14 +53,19 @@ export async function startHotRuns(q, time = "month") {
 
 export async function collectRuns([rRun, rData, xRun, xData]) {
   const one = async (runId, dataId, map) => {
-    if (runId === "-") return { done: true, posts: [] };
+    if (runId === "-") return { done: true, posts: [], status: "NOT_STARTED" };
     try {
       const [run, items] = await Promise.all([apify(`/actor-runs/${runId}`), apify(`/datasets/${dataId}/items?clean=true&limit=60`)]);
       const status = (run.data && run.data.status) || "RUNNING";
-      return { done: ["SUCCEEDED", "FAILED", "ABORTED", "TIMED-OUT"].includes(status), posts: (Array.isArray(items) ? items : []).map(map).filter(Boolean) };
-    } catch { return { done: true, posts: [] }; }
+      return { done: ["SUCCEEDED", "FAILED", "ABORTED", "TIMED-OUT"].includes(status), status, posts: (Array.isArray(items) ? items : []).map(map).filter(Boolean) };
+    } catch { return { done: true, posts: [], status: "ERROR" }; }
   };
   const [a, b] = await Promise.all([one(rRun, rData, fromReddit), one(xRun, xData, fromX)]);
   const seen = new Set();
-  return { done: a.done && b.done, posts: [...a.posts, ...b.posts].filter(p => !seen.has(p.url) && seen.add(p.url)) };
+  return {
+    done: a.done && b.done,
+    posts: [...a.posts, ...b.posts].filter(p => !seen.has(p.url) && seen.add(p.url)),
+    // What each source did, so the page can say "read 40 posts, none were buyers" vs "couldn't reach X".
+    sources: { Reddit: { status: a.status, count: a.posts.length }, X: { status: b.status, count: b.posts.length } },
+  };
 }
