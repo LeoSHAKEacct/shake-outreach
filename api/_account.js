@@ -21,6 +21,34 @@ export const startCredits = user => {
   return isPaid(user || {}) ? Number(m.plan_credits || PLANS[String(m.plan).toLowerCase()].credits) : START_CREDITS;
 };
 export const HOT_TRIAL_DAYS = 7;
+export const TRIAL_DAYS = 15;          // the signup credit expires after this
+// One-time top-ups: always priced above the plan rate per lead, so plans stay the better deal.
+export const TOPUPS = {
+  t17: { price: 17, leads: 140 },
+  t35: { price: 35, leads: 300 },
+  t70: { price: 70, leads: 650 },
+};
+const createdAt = user => Date.parse((user && user.created_at) || "") || Date.now();
+export const trialEndsAt = user => Math.floor((createdAt(user) + TRIAL_DAYS * 86400000) / 1000);
+export const trialExpired = user => !isPaid(user || {}) && Date.now() / 1000 > trialEndsAt(user);
+export const topupLeft = user => Math.max(0, Number(((user && user.app_metadata) || {}).topup_balance || 0));
+// Monthly (or trial) credit still unused; an expired trial has none.
+export function baseLeft(user) {
+  if (trialExpired(user)) return 0;
+  const used = Number(((user && user.app_metadata) || {}).credits_used || 0);
+  return Math.max(0, startCredits(user) - used);
+}
+// People who paid (a plan or a top-up) get the paid lead source.
+export const paidSource = user => isPaid(user || {}) || topupLeft(user) > 0;
+// What to store after spending `cost` dollars: plan/trial credit first, then top-up balance.
+export function spendPatch(user, cost) {
+  const m = (user && user.app_metadata) || {};
+  const fromBase = Math.min(baseLeft(user), cost);
+  return {
+    credits_used: +(Number(m.credits_used || 0) + fromBase).toFixed(2),
+    topup_balance: +Math.max(0, topupLeft(user) - (cost - fromBase)).toFixed(2),
+  };
+}
 export const isPaid = user => PAID_PLANS.includes(String((user.app_metadata || {}).plan || "").toLowerCase());
 export function hotDaysLeft(user) {
   if (isPaid(user)) return null;
@@ -33,7 +61,11 @@ export function account(user) {
   const used = Number(m.credits_used || 0);
   const start = startCredits(user);
   return {
-    credits_left: Math.max(0, +(start - used).toFixed(2)),
+    credits_left: +(baseLeft(user) + topupLeft(user)).toFixed(2),
+    topup_left: +topupLeft(user).toFixed(2),
+    trial_ends_at: user && !isPaid(user) ? trialEndsAt(user) : null,
+    trial_expired: user ? trialExpired(user) : false,
+    topups: TOPUPS,
     credits_used: +used.toFixed(2),
     start_credits: start,
     leads_found: Number(m.leads_found || 0),

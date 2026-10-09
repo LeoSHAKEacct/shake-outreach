@@ -1,5 +1,5 @@
 import { send } from "./_claude.js";
-import { PLANS, getUserById, updateAppMeta } from "./_account.js";
+import { PLANS, TOPUPS, LEAD_PRICE, getUserById, updateAppMeta } from "./_account.js";
 import { stripe, verifyStripe } from "./_stripe.js";
 
 // Stripe tells us when someone pays, renews or cancels; we set their plan and credits.
@@ -28,7 +28,21 @@ export default async function handler(req, res) {
   const event = JSON.parse(raw);
   const o = event.data.object;
   try {
-    if (event.type === "checkout.session.completed" && o.mode === "subscription") {
+    if (event.type === "checkout.session.completed" && o.mode === "payment" && TOPUPS[(o.metadata || {}).topup]) {
+      // Top-up paid: add its leads to the balance once per checkout session.
+      if (o.payment_status !== "paid") return send(res, 200, { ok: true });
+      const user = await getUserById(o.client_reference_id || o.metadata.user_id);
+      if (!user) return send(res, 200, { ok: true });
+      const m = user.app_metadata || {};
+      const done = m.topup_sessions || [];
+      if (!done.includes(o.id)) {
+        await updateAppMeta(user, {
+          topup_balance: +(Number(m.topup_balance || 0) + TOPUPS[o.metadata.topup].leads * LEAD_PRICE).toFixed(2),
+          topup_sessions: [...done, o.id].slice(-30),
+          ...(o.customer && !m.stripe_customer ? { stripe_customer: o.customer } : {}),
+        });
+      }
+    } else if (event.type === "checkout.session.completed" && o.mode === "subscription") {
       const key = (o.metadata || {}).plan;
       if (!PLANS[key]) return send(res, 200, { ok: true });
       let renews = null;

@@ -168,6 +168,14 @@ header.scrolled{border-color:var(--line)}
 .inline{display:flex;gap:8px;align-items:center}
 .inline input{flex:1;min-width:0;height:38px;padding:6px 12px}
 .inline .btn{padding:0 16px;height:38px;font-size:.88rem}
+.topups{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.topup{display:flex;flex-direction:column;align-items:flex-start;gap:4px;padding:18px 20px;cursor:pointer;text-align:left;font:inherit;color:var(--ink);border:1px solid var(--line)}
+.topup:hover{border-color:var(--accent)}
+.topup .tl{font-weight:600}
+.topup .tp{font-family:"Instrument Serif",Georgia,serif;font-size:2rem;line-height:1.1}
+.topup .tb{margin-top:6px;font-size:.85rem;font-weight:600;color:var(--accent)}
+.topup:disabled{opacity:.6;cursor:default}
+@media (max-width:640px){.topups{grid-template-columns:1fr}}
 .plan-manage{display:flex;flex-wrap:wrap;align-items:center;gap:10px 12px;border-top:1px solid var(--line);padding-top:14px;font-size:.92rem}
 .plan-manage .grow{flex:1;min-width:200px}
 .plan-manage .btn{padding:0 14px;height:36px;font-size:.85rem}
@@ -671,7 +679,7 @@ footer{margin-top:auto;padding:28px 0 24px;color:var(--muted);font-size:.88rem}
     <div class="center">
       <span class="eyebrow">Pricing</span>
       <h2>Start free. <em>Grow when it pays.</em></h2>
-      <p class="lead">Every new account gets 500 free leads to try it on real prospects.</p>
+      <p class="lead">Every new account gets 500 free leads to use in its first 15 days.</p>
     </div>
     <div class="plans">
       <div class="card plan">
@@ -694,7 +702,7 @@ footer{margin-top:auto;padding:28px 0 24px;color:var(--muted);font-size:.88rem}
         <button class="btn btn-ghost plan-btn" type="button">Start free</button>
       </div>
     </div>
-    <p class="beta-note">Every new account starts with 500 free leads. No card needed to try it.</p>
+    <p class="beta-note">Every new account gets 500 free leads for 15 days. No card needed to try it.</p>
   </div>
 </section>
 
@@ -761,7 +769,7 @@ footer{margin-top:auto;padding:28px 0 24px;color:var(--muted);font-size:.88rem}
     <button class="back" type="button" data-back>← Back</button>
     <h2>Leads &amp; plans</h2>
     <div class="page-card">
-      <div class="balance"><span class="big" id="billLeft">500</span><span class="muted">leads left of your <span id="billStart">500</span> <span id="billKind">free trial leads</span></span></div>
+      <div class="balance"><span class="big" id="billLeft">500</span><span class="muted" id="billSub">leads left of your 500 free trial leads</span></div>
       <div class="meter"><span id="billBar" style="width:100%"></span></div>
       <div class="profile-rows">
         <div class="profile-row"><span>Leads with email found</span><span id="billLeads">0</span></div>
@@ -783,6 +791,13 @@ footer{margin-top:auto;padding:28px 0 24px;color:var(--muted);font-size:.88rem}
       <div class="card plan"><h3>Pro</h3><div class="price">$150 <small>/ month</small></div><ul><li>2,000 leads with email a month</li><li>AI emails for every lead</li><li>🔥 Hot leads in real time</li><li>Dedicated onboarding</li></ul><button class="btn btn-ghost activate" type="button" data-plan="Pro">Activate</button></div>
     </div>
     <p class="status" id="planNote" style="text-align:center;margin-top:16px"></p>
+    <h3 class="page-sub">Top up</h3>
+    <p class="muted" style="margin-bottom:14px">Need more leads without a plan, or extra on top of yours? One-time payment, and top-up leads never expire.</p>
+    <div class="topups">
+      <button class="card topup" type="button" data-pack="t17"><span class="tl">140 leads</span><span class="tp">$17</span><span class="tb">Buy</span></button>
+      <button class="card topup" type="button" data-pack="t35"><span class="tl">300 leads</span><span class="tp">$35</span><span class="tb">Buy</span></button>
+      <button class="card topup" type="button" data-pack="t70"><span class="tl">650 leads</span><span class="tp">$70</span><span class="tb">Buy</span></button>
+    </div>
   </div>
 </section>
 </main>
@@ -877,13 +892,23 @@ function renderAccount(){
   document.getElementById('creditChip').hidden = !(authOn && session);
   document.getElementById('creditChip').textContent = money(acct.credits_left) + ' credits';
   document.getElementById('billLeft').textContent = num(leadsLeft());
-  document.getElementById('billStart').textContent = num(leadsTotal());
   document.getElementById('billLeads').textContent = num(acct.leads_found);
   document.getElementById('billSent').textContent = num(acct.emails_sent);
-  document.getElementById('billBar').style.width = Math.max(0, Math.min(100, 100 * acct.credits_left / acct.start_credits)) + '%';
+  document.getElementById('billBar').style.width = Math.max(0, Math.min(100, 100 * acct.credits_left / Math.max(0.01, acct.start_credits + (acct.topup_left || 0)))) + '%';
   const plan = String(acct.plan || 'trial').toLowerCase();
-  document.getElementById('billKind').textContent = acct.paid ? 'monthly ' + plan.charAt(0).toUpperCase() + plan.slice(1) + ' leads' : 'free trial leads';
-  document.getElementById('billNote').textContent = '';
+  const ends = acct.trial_ends_at ? new Date(acct.trial_ends_at * 1000).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '';
+  const extra = acct.topup_left > 0 ? ' + ' + num(leadsOf(acct.topup_left)) + ' top-up leads' : '';
+  document.getElementById('billSub').textContent =
+    acct.paid ? 'leads left of your ' + num(leadsTotal()) + ' monthly ' + plan.charAt(0).toUpperCase() + plan.slice(1) + ' leads' + extra
+    : acct.trial_expired ? (acct.topup_left > 0 ? 'top-up leads left' : 'leads left · your free trial ended ' + ends)
+    : 'leads left of your ' + num(leadsTotal()) + ' free trial leads · until ' + ends + extra;
+  document.getElementById('billNote').className = 'status'; document.getElementById('billNote').textContent = '';
+  if (acct.trial_expired && !acct.paid) {
+    document.getElementById('billNote').className = 'status err';
+    document.getElementById('billNote').textContent = acct.topup_left > 0
+      ? 'Your 15-day free trial has ended. You’re using your top-up leads now.'
+      : 'Your 15-day free trial has ended. Pick a plan or top up to keep finding leads.';
+  }
   renderPlans();
   if (session) fillProfile();
   if (typeof renderRecipients === 'function' && typeof current !== 'undefined') renderRecipients();
@@ -908,6 +933,18 @@ const RANK = { trial: 0, starter: 1, growth: 2, pro: 3 };
 const planName = k => { k = String(k || ''); return k.charAt(0).toUpperCase() + k.slice(1).toLowerCase(); };
 const day = t => t ? new Date(t * 1000).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : 'your next renewal';
 let armed = null;
+document.querySelectorAll('.topup').forEach(b => b.addEventListener('click', async () => {
+  if (!session) { openAuth('up'); return; }
+  const tb = b.querySelector('.tb'); const label = tb.textContent;
+  b.disabled = true; tb.textContent = 'Opening…';
+  try {
+    const r = await fetch('/api/billing/topup', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + await freshToken() }, body: JSON.stringify({ action: 'topup', pack: b.dataset.pack }) });
+    const d = await r.json().catch(() => ({}));
+    if (d.url) { location.href = d.url; return; }
+    planNote(d.error === 'payments_off' ? 'Payments are being switched on. Try again in a few minutes.' : 'Couldn’t open checkout. Try again.', false);
+  } catch { planNote('Couldn’t open checkout. Try again.', false); }
+  b.disabled = false; tb.textContent = label;
+}));
 function planNote(text, ok){ const n = document.getElementById('planNote'); n.className = ok ? 'status ok' : 'status err'; n.textContent = text; }
 function renderPlans(){
   armed = null;
@@ -1398,7 +1435,7 @@ function leadsError(code){
   switch (code) {
     case 'no_place': return 'Couldn’t find that place. Try “City, Country”.';
     case 'free_source_busy': return 'The free lead source is busy right now. Try again in a minute.';
-    case 'no_credits': return 'You’ve used all your leads. See Leads & plans to get more.';
+    case 'no_credits': return acct.trial_expired && !acct.paid ? 'Your 15-day free trial has ended. Pick a plan or top up in Leads & plans to keep going.' : 'You’ve used all your leads. Top up or upgrade in Leads & plans.';
     case 'missing_apify': return 'Lead search isn’t switched on yet: the site owner needs to add the Apify token in Vercel.';
     case 'apify_credits': return 'The lead finder is out of credits. Try again later.';
     case 'rate_limited': return 'Too many lead searches. Wait a few minutes and try again.';
@@ -1987,7 +2024,14 @@ $('tryForm2').addEventListener('submit', e => {
 if (current.site && !current.example) $('site').value = current.site;
 if (current.offer) $('offer').value = current.offer;
 (() => {
-  const q = new URLSearchParams(location.search), g = q.get('gmail'), paid = q.get('paid');
+  const q = new URLSearchParams(location.search), g = q.get('gmail'), paid = q.get('paid'), top = q.get('topup');
+  if (top) {
+    history.replaceState(null, '', location.pathname + location.hash);
+    const n = document.getElementById('planNote');
+    const leads = { t17: 140, t35: 300, t70: 650 }[top];
+    n.className = 'status ok'; n.textContent = 'Payment received. ' + (leads ? leads + ' leads' : 'Your leads') + ' are being added to your account. 🎉';
+    setTimeout(loadAccount, 2500); setTimeout(loadAccount, 7000);
+  }
   if (paid) {
     history.replaceState(null, '', location.pathname + location.hash);
     const n = document.getElementById('planNote');

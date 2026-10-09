@@ -1,5 +1,5 @@
 import { requireUser, send, readBody } from "./_claude.js";
-import { PLANS, updateAppMeta } from "./_account.js";
+import { PLANS, TOPUPS, updateAppMeta } from "./_account.js";
 import { stripe, origin } from "./_stripe.js";
 
 // Everything plan-related, behind one function (Vercel's function limit):
@@ -126,6 +126,27 @@ async function cancel(res, user, undo) {
   return send(res, 200, { done: undo ? "resumed" : "cancelled", at: end });
 }
 
+// One-time top-up: a Stripe Checkout payment; the webhook adds the leads.
+async function topup(req, res, user, key) {
+  const t = TOPUPS[key];
+  if (!t) return send(res, 400, { error: "no_topup" });
+  const m = user.app_metadata || {};
+  const base = origin(req);
+  const s = await stripe("checkout/sessions", {
+    mode: "payment",
+    client_reference_id: user.id,
+    ...(m.stripe_customer ? { customer: m.stripe_customer } : { customer_email: user.email, customer_creation: "always" }),
+    line_items: { 0: { quantity: 1, price_data: {
+      currency: "usd", unit_amount: t.price * 100,
+      product_data: { name: "Shake Outreach top-up · " + t.leads + " leads" },
+    } } },
+    metadata: { user_id: user.id, topup: key },
+    success_url: base + "/?topup=" + key + "#billing",
+    cancel_url: base + "/?paid=cancelled#billing",
+  });
+  return send(res, 200, { url: s.url });
+}
+
 async function portal(req, res, user) {
   let customer = (user.app_metadata || {}).stripe_customer;
   if (!customer) { const sub = await findSub(user); customer = sub && sub.customer; }
@@ -150,6 +171,7 @@ export default async function handler(req, res) {
     if (action === "cancel") return await cancel(res, user, false);
     if (action === "resume") return await cancel(res, user, true);
     if (action === "portal") return await portal(req, res, user);
+    if (action === "topup") return await topup(req, res, user, String(body.pack || ""));
     return send(res, 400, { error: "no_action" });
   } catch (e) {
     console.error("billing", action, e);

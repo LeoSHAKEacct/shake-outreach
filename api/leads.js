@@ -1,6 +1,6 @@
 import { apify, startRun, makeTicket, readTicket } from "./_apify.js";
 import { requireUser, rateLimited, send, readBody, clip } from "./_claude.js";
-import { account, updateAppMeta, tracking, isPaid, LEAD_PRICE } from "./_account.js";
+import { account, updateAppMeta, tracking, paidSource, spendPatch, LEAD_PRICE } from "./_account.js";
 import { freeLeads } from "./_free_leads.js";
 
 // Real leads from Google Maps via Apify's Google Maps Scraper.
@@ -29,7 +29,7 @@ async function charge(user, leads, runId) {
   const m = user.app_metadata || {};
   try {
     const updated = await updateAppMeta(user, {
-      credits_used: +(Number(m.credits_used || 0) + billable * LEAD_PRICE).toFixed(2),
+      ...spendPatch(user, billable * LEAD_PRICE),
       leads_found: Number(m.leads_found || 0) + billable,
       charged_runs: [...charged, runId].slice(-50),
     });
@@ -40,7 +40,7 @@ async function charge(user, leads, runId) {
 export default async function handler(req, res) {
   const user = await requireUser(req);
   if (!user || !user.id) return send(res, 401, { error: "auth_required" });
-  const paid = isPaid(user);
+  const paid = paidSource(user);
   if (paid && !process.env.APIFY_TOKEN) return send(res, 503, { error: "missing_apify" });
 
   if (req.method === "POST") {
