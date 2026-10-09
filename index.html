@@ -114,6 +114,12 @@ header.scrolled{border-color:var(--line)}
 @keyframes scroll{to{transform:translateX(-50%)}}
 .chip{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px 18px;font-size:.92rem;color:var(--ink2);white-space:nowrap;display:flex;align-items:center;gap:10px}
 .chip b{color:var(--ink)}
+.industries{margin-top:26px}
+.ind-title{font-size:.8rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.ind-title b{color:var(--accent)}
+.ind-marquee{padding:12px 0 4px}
+.ind-track{gap:8px;animation-duration:90s;animation-direction:reverse}
+.ind-track .chip{padding:7px 13px;border-radius:999px;font-size:.84rem;gap:7px}
 .chip i{font-style:normal;font-size:1.1rem}
 
 /* how it works */
@@ -449,7 +455,7 @@ footer{margin-top:auto;padding:28px 0 24px;color:var(--muted);font-size:.88rem}
     <span class="pill mkt"><b>LIVE</b> Try it on your own website below</span>
     <p class="slogan mkt">Shake your money making.</p>
     <h1 class="mkt">Your sales team that<br><em>never clocks out.</em></h1>
-    <p class="lead mkt">Shake Outreach studies your market, finds the people who actually make the buying decision, writes them a personal email and follows up, all while you run your business.</p>
+    <p class="lead mkt">Shake Outreach studies your market, finds real businesses that need what you sell, writes the email and sends it from your Gmail, while you run your business.</p>
     <form class="try" id="tryForm">
       <input id="site" type="text" placeholder="Enter your website, e.g. yourbrand.com" aria-label="Your website" autocomplete="off">
       <button class="btn btn-accent" type="submit" id="runBtn">Find my customers →</button>
@@ -458,6 +464,10 @@ footer{margin-top:auto;padding:28px 0 24px;color:var(--muted);font-size:.88rem}
     <div class="refine" id="refine" hidden>
       <button class="linkish" type="button" id="refineBtn">✏️ Refine my search</button>
       <input id="offer" class="offer" type="text" placeholder="Tell us more about what you sell, then press Enter" aria-label="What you sell" autocomplete="off" hidden>
+    </div>
+    <div class="industries">
+      <p class="ind-title">Works for <b>any industry</b></p>
+      <div class="marquee ind-marquee" aria-label="Industries we find customers for"><div class="track ind-track" id="indTrack"></div></div>
     </div>
     <div class="history app-only" id="history" hidden>
       <div class="history-title">Your past searches</div>
@@ -1312,6 +1322,12 @@ addEventListener('scroll', () => hdr.classList.toggle('scrolled', scrollY > 8), 
 
 // close mobile menu on link click
 document.querySelectorAll('#mobile a').forEach(a => a.addEventListener('click', () => document.getElementById('mobile').classList.remove('open')));
+
+// industries strip: every kind of business we can find customers for
+const INDUSTRIES = [['🦷','Dental clinics'],['🏨','Hotels & hostels'],['⚖️','Law firms'],['🏠','Real estate'],['🏋️','Gyms & studios'],['🍽️','Restaurants'],['☕','Coffee shops'],['📊','Accounting firms'],['📣','Marketing agencies'],['💻','Web design studios'],['🛍️','E-commerce brands'],['🗣️','Language schools'],['🚗','Car dealers'],['🐾','Veterinary clinics'],['🏗️','Construction'],['📐','Architects'],['💇','Hair & beauty salons'],['🧖','Spas & wellness'],['🛡️','Insurance brokers'],['🤝','Recruiting agencies'],['🏢','Coworking spaces'],['🎉','Event planners'],['💒','Wedding venues'],['📷','Photographers'],['✈️','Travel agencies'],['🎓','Schools & academies'],['🩺','Medical clinics'],['💊','Pharmacies'],['🚚','Logistics'],['🏭','Manufacturers'],['📦','Wholesalers'],['🚀','Software startups'],['🖥️','IT services'],['🔐','Cybersecurity'],['💳','Fintech'],['💚','Nonprofits'],['🥐','Bakeries'],['💐','Florists'],['🛋️','Interior designers'],['🧹','Cleaning services'],['🔧','Plumbers & electricians'],['☀️','Solar installers'],['🔩','Auto repair'],['👗','Fashion brands'],['💍','Jewelry stores'],['🐶','Pet shops'],['🎵','Music schools'],['🧠','Coaches & consultants'],['🎬','Video producers'],['🍷','Wineries & breweries'],['🌾','Farms & growers']];
+const indTrack = document.getElementById('indTrack');
+const indHtml = INDUSTRIES.map(([e, n]) => '<div class="chip"><i>' + e + '</i>' + n + '</div>').join('');
+indTrack.innerHTML = indHtml + indHtml;
 
 // duplicate marquee for seamless loop
 const track = document.getElementById('track');
