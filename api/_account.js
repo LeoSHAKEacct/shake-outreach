@@ -80,11 +80,12 @@ export function account(user) {
     payments: Boolean(process.env.STRIPE_SECRET_KEY),
     paid: isPaid(user || {}),
     hot_days_left: user ? hotDaysLeft(user) : 0,
+    hot_watch: m.hot_watch && m.hot_watch.on ? { segment: m.hot_watch.segment, location: m.hot_watch.location, last: m.hot_watch.last || null } : null,
     tracked: tracking(),
   };
 }
 
-function adminHeaders(key) {
+export function adminHeaders(key) {
   const headers = { "Content-Type": "application/json", apikey: key };
   if (key.startsWith("eyJ")) headers.Authorization = "Bearer " + key;
   return headers;

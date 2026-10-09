@@ -249,6 +249,8 @@ body[data-page] .hero{display:none}
 .addr-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
 .addr-row input{flex:1;min-width:220px;border:1px solid var(--line);background:var(--bg);color:var(--ink);border-radius:999px;padding:10px 16px;font:400 .93rem Inter,sans-serif;outline:0}
 .addr-row input:focus{border-color:var(--accent)}
+.watch-row{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;border:1px solid var(--line);border-radius:12px;padding:10px 14px;margin:10px 0;font-size:.9rem;background:var(--bg)}
+.watch-row .btn{padding:0 14px;height:34px;font-size:.84rem}
 .recip-add{flex:1;min-width:180px;border:0;background:transparent;color:var(--ink);font:400 .88rem Inter,sans-serif;padding:5px 6px;outline:0}
 .recips{display:flex;flex-wrap:wrap;gap:6px;padding:8px;border:1px solid var(--line);background:var(--bg);border-radius:12px;max-height:140px;overflow:auto}
 .recip{display:inline-flex;align-items:center;gap:6px;background:var(--card);border:1px solid var(--line);border-radius:999px;padding:4px 6px 4px 10px;font-size:.82rem;max-width:100%}
@@ -494,6 +496,10 @@ footer{margin-top:auto;padding:28px 0 24px;color:var(--muted);font-size:.88rem}
       <div class="demo-bar"><span style="font-weight:600;color:var(--ink)" id="hotTitle">🔥 Hot leads</span><span class="mode" id="hotCount"></span></div>
       <div class="leads-body">
         <p class="status" id="hotStatus"></p>
+        <div class="watch-row" id="watchRow" hidden>
+          <span id="watchText"></span>
+          <button class="btn btn-ghost" type="button" id="watchBtn"></button>
+        </div>
         <div class="hot-list" id="hotList"></div>
       </div>
     </div>
@@ -532,14 +538,14 @@ footer{margin-top:auto;padding:28px 0 24px;color:var(--muted);font-size:.88rem}
 <!-- OUTCOMES MARQUEE -->
 <div class="marquee mkt" aria-hidden="true">
   <div class="track" id="track">
-    <div class="chip"><i>📬</i>Emails written from <b>real research</b>, not templates</div>
-    <div class="chip"><i>🎯</i>Reaches the <b>owner or decision-maker</b></div>
-    <div class="chip"><i>🔁</i>Follow-ups sent <b>automatically</b></div>
-    <div class="chip"><i>📅</i>Replies turned into <b>booked calls</b></div>
-    <div class="chip"><i>🔥</i>Sending domains <b>warmed for you</b></div>
+    <div class="chip"><i>📬</i>A ready email for <b>each customer type</b></div>
+    <div class="chip"><i>🗺️</i>Real businesses <b>with an email</b></div>
+    <div class="chip"><i>🔥</i>People asking <b>right now</b> on Reddit &amp; X</div>
+    <div class="chip"><i>✉️</i>Sent from <b>your own Gmail</b></div>
+    <div class="chip"><i>🔗</i>Add <b>links</b> to any word</div>
     <div class="chip"><i>⏱️</i>About <b>15 minutes a day</b> of your time</div>
-    <div class="chip"><i>📊</i>See <b>cost per lead</b> for every campaign</div>
-    <div class="chip"><i>📥</i>Every reply in <b>one inbox</b></div>
+    <div class="chip"><i>📈</i>Leads and emails <b>counted for you</b></div>
+    <div class="chip"><i>📥</i>Replies land in <b>your inbox</b></div>
   </div>
 </div>
 
@@ -548,14 +554,14 @@ footer{margin-top:auto;padding:28px 0 24px;color:var(--muted);font-size:.88rem}
   <div class="wrap">
     <div class="center">
       <span class="eyebrow">How it works</span>
-      <h2>From a web address<br>to a <em>full calendar</em>.</h2>
+      <h2>From a web address<br>to <em>real conversations</em>.</h2>
       <p class="lead">You give it your website. It does the prospecting work a full sales team would do — and shows you every step.</p>
     </div>
     <div class="steps">
       <div class="card"><div class="num">01</div><h3>Learns your business</h3><p>Reads your site and offer, then works out which kinds of customers are most likely to buy.</p></div>
-      <div class="card"><div class="num">02</div><h3>Finds the right people</h3><p>Pulls verified contacts for the decision-makers in each segment — not generic info@ inboxes.</p></div>
-      <div class="card"><div class="num">03</div><h3>Writes like you would</h3><p>Every email references something real about the prospect’s company. You approve the tone once.</p></div>
-      <div class="card"><div class="num">04</div><h3>Books the meeting</h3><p>Handles replies and follow-ups, answers simple questions and drops booked calls on your calendar.</p></div>
+      <div class="card"><div class="num">02</div><h3>Finds real businesses</h3><p>Pulls businesses of that type in the city you choose, with the email address each one publishes.</p></div>
+      <div class="card"><div class="num">03</div><h3>Writes the email</h3><p>A short, friendly email for each customer type, signed with your name. Edit anything and add your links.</p></div>
+      <div class="card"><div class="num">04</div><h3>Sends from your Gmail</h3><p>One click sends a personal copy to every lead from your own inbox. Replies come straight back to you.</p></div>
     </div>
   </div>
 </section>
@@ -565,25 +571,25 @@ footer{margin-top:auto;padding:28px 0 24px;color:var(--muted);font-size:.88rem}
   <div class="wrap">
     <div class="split">
       <div>
-        <span class="eyebrow">Campaigns</span>
-        <h2>It tests every segment. <em>You keep the winners.</em></h2>
-        <p class="lead">Each customer type runs as its own campaign. Ones that convert get scaled up, ones that don’t get paused — and you see the cost per lead the whole time.</p>
+        <span class="eyebrow">Customer types</span>
+        <h2>One list per customer type. <em>You keep the winners.</em></h2>
+        <p class="lead">Each customer type gets its own leads and its own email. See how many leads you found and how many emails went out, and put your time into the ones that answer.</p>
         <ul class="ticks">
-          <li>Live results for every segment</li>
-          <li>Budget shifts automatically to what’s working</li>
-          <li>Pause, edit or add a segment in one click</li>
+          <li>Leads and emails counted for every customer type</li>
+          <li>Switch customer type in one click</li>
+          <li>Your past searches saved for later</li>
         </ul>
       </div>
       <div class="panel">
-        <div class="demo-title">Campaigns <small>example: swimwear manufacturer</small></div>
+        <div class="demo-title">Customer types <small>example: swimwear manufacturer</small></div>
         <table class="tbl">
-          <thead><tr><th>Segment</th><th>Status</th><th>Cost / lead</th></tr></thead>
+          <thead><tr><th>Segment</th><th>Status</th><th>Leads</th></tr></thead>
           <tbody>
-            <tr><td>Swim boutiques</td><td><span class="tag g">Scaling</span></td><td>$1.42</td></tr>
-            <tr><td>Resort &amp; hotel shops</td><td><span class="tag g">Scaling</span></td><td>$1.78</td></tr>
-            <tr><td>Influencer brands</td><td><span class="tag a">Testing</span></td><td>$2.10</td></tr>
-            <tr><td>Surf shops</td><td><span class="tag a">Testing</span></td><td>$2.65</td></tr>
-            <tr><td>Department stores</td><td><span class="tag n">Paused</span></td><td>$6.40</td></tr>
+            <tr><td>Swim boutiques</td><td><span class="tag g">Sent</span></td><td>48</td></tr>
+            <tr><td>Resort &amp; hotel shops</td><td><span class="tag g">Sent</span></td><td>35</td></tr>
+            <tr><td>Influencer brands</td><td><span class="tag a">Ready</span></td><td>22</td></tr>
+            <tr><td>Surf shops</td><td><span class="tag a">Ready</span></td><td>17</td></tr>
+            <tr><td>Department stores</td><td><span class="tag n">Skipped</span></td><td>—</td></tr>
           </tbody>
         </table>
       </div>
@@ -592,33 +598,29 @@ footer{margin-top:auto;padding:28px 0 24px;color:var(--muted);font-size:.88rem}
     <div class="split rev">
       <div class="panel mail">
         <div class="meta">
-          <span>To</span><span>Maria, Owner · Coastline Swim Co.</span>
+          <span>To</span><span>hello@coastlineswim.com · Coastline Swim Co.</span>
           <span>Subject</span><span>Your new resort line</span>
         </div>
         <div class="body">
-          <p>Hi Maria,</p>
-          <p>Saw you just opened <mark>a second store in Tulum</mark> — and that your <mark>recycled-nylon pieces sold out</mark> last season. Congrats.</p>
+          <p>Hi <mark>Coastline Swim Co.</mark> team,</p>
+          <p>Boutiques like yours often want <mark>fresh styles every season</mark> without ordering hundreds of pieces.</p>
           <p>We manufacture private-label swimwear in small runs (from 50 pieces), so you can test new cuts without sitting on stock.</p>
           <p>Worth a 15-minute call next week?</p>
         </div>
         <div class="reply">
-          <div class="who">Maria <span>2h later</span></div>
+          <div class="who">Maria · Coastline Swim <span>2h later</span></div>
           Yes, actually perfect timing. What’s your lead time?
         </div>
-        <div class="reply agent">
-          <div class="who">Shake Outreach <span>auto-reply</span></div>
-          About 3–4 weeks for a first run. Here’s a link to pick a time that suits you →
-        </div>
-        <div class="booked">✓ Call booked · Thursday 10:30</div>
+<div class="booked">✓ Reply in your Gmail inbox</div>
       </div>
       <div>
-        <span class="eyebrow">Inbox</span>
-        <h2>Emails that read like <em>you did the homework.</em></h2>
-        <p class="lead">Before writing, the agent looks at each prospect’s company — recent news, products, locations — so the first line is about them, not you. When they reply, it keeps the conversation going and books the call.</p>
+        <span class="eyebrow">Your email</span>
+        <h2>Emails that sound like <em>you wrote them.</em></h2>
+        <p class="lead">For each customer type, the AI writes a short email that opens with what matters to them. You edit anything, add links and press Send. Replies come straight to your Gmail, so the conversation is yours.</p>
         <ul class="ticks">
-          <li>Personal first line for every prospect</li>
-          <li>Smart follow-ups that stop the moment someone replies</li>
-          <li>Hand off to you at any point</li>
+          <li>Each lead gets their own copy, with their business name</li>
+          <li>Edit, add links and send in one click</li>
+          <li>Your business address and an opt-out line added for you</li>
         </ul>
       </div>
     </div>
@@ -631,12 +633,12 @@ footer{margin-top:auto;padding:28px 0 24px;color:var(--muted);font-size:.88rem}
     <div class="center">
       <span class="eyebrow">Under the hood</span>
       <h2>The boring setup? <em>Already done.</em></h2>
-      <p class="lead">No buying domains, no DNS records, no weeks of warming up inboxes. Just type your web address and go.</p>
+      <p class="lead">No domains to buy, no DNS records, no inbox warm-up. Paste your website and go.</p>
     </div>
     <div class="stats">
-      <div class="stat"><div class="big">Day <em>1</em></div><h3>Pre-warmed sending domains</h3><p>Your emails go out from warmed, monitored inboxes from the first day, so they land in the inbox — not spam.</p></div>
-      <div class="stat"><div class="big"><em>✓</em> Verified</div><h3>Decision-maker contacts</h3><p>Every address is checked before sending. You reach owners, founders and buyers — the people who can say yes.</p></div>
-      <div class="stat"><div class="big"><em>24</em>/7</div><h3>Always running</h3><p>Campaigns keep sending, following up and answering replies on nights and weekends, so the pipeline never stalls.</p></div>
+      <div class="stat"><div class="big"><em>20</em> sec</div><h3>Customer types and emails</h3><p>Paste your website and get your best customer types, each with a ready email, in about 20 seconds.</p></div>
+      <div class="stat"><div class="big"><em>✓</em> Yours</div><h3>Your own Gmail</h3><p>Emails go out from your inbox and replies come back to it. Up to 50 a day, to keep your inbox healthy.</p></div>
+      <div class="stat"><div class="big"><em>Weekly</em></div><h3>Hot leads by email</h3><p>Every Monday, the people who asked for what you sell that week, with a ready reply for each.</p></div>
     </div>
   </div>
 </section>
@@ -650,8 +652,8 @@ footer{margin-top:auto;padding:28px 0 24px;color:var(--muted);font-size:.88rem}
     </div>
     <div class="who-grid">
       <div class="card"><div class="ico">🧑‍💼</div><h3>Founders selling solo</h3><p>No sales hire yet? Get a steady flow of conversations without spending your evenings on prospecting.</p></div>
-      <div class="card"><div class="ico">🏭</div><h3>Manufacturers &amp; wholesalers</h3><p>Reach retailers, boutiques and buyers in new regions — and see which customer types order most.</p></div>
-      <div class="card"><div class="ico">🤝</div><h3>Agencies &amp; services</h3><p>Fill your own pipeline, or run campaigns for clients with separate workspaces and reports.</p></div>
+      <div class="card"><div class="ico">🏭</div><h3>Manufacturers &amp; wholesalers</h3><p>Reach retailers, boutiques and buyers in new regions, one customer type at a time.</p></div>
+      <div class="card"><div class="ico">🤝</div><h3>Agencies &amp; services</h3><p>Fill your own pipeline, or find leads and write emails for your clients.</p></div>
     </div>
   </div>
 </section>
@@ -662,7 +664,7 @@ footer{margin-top:auto;padding:28px 0 24px;color:var(--muted);font-size:.88rem}
     <div class="center">
       <span class="eyebrow">New · 1 week free</span>
       <h2>🔥 Hot leads, <em>in real time.</em></h2>
-      <p class="lead">Right now, someone is posting “can anyone recommend a…” for exactly what you sell. Our agent scans the internet in real time, pick out the people who are ready to buy, and write you a helpful reply for each one.</p>
+      <p class="lead">Right now, someone is posting “can anyone recommend a…” for exactly what you sell. Our agent scans the internet in real time, picks out the people who are ready to buy, and writes you a helpful reply for each one. Turn on the weekly email and they come to your inbox every Monday.</p>
     </div>
     <div class="steps">
       <div class="card"><div class="num">01</div><h3>We listen</h3><p>Fresh public posts where people ask for recommendations or complain about their current provider.</p></div>
@@ -685,24 +687,24 @@ footer{margin-top:auto;padding:28px 0 24px;color:var(--muted);font-size:.88rem}
       <div class="card plan">
         <h3>Starter</h3><p>For founders testing outbound.</p>
         <div class="price">$50 <small>/ month</small></div>
-        <ul><li>Up to 500 prospects a month</li><li>3 active campaigns</li><li>AI-written emails and follow-ups</li><li>Email support</li></ul>
+        <ul><li>500 leads with email a month</li><li>A ready email for every customer type</li><li>Send from your Gmail</li><li>🔥 Hot leads + weekly email</li></ul>
         <button class="btn btn-ghost plan-btn" type="button">Start free</button>
       </div>
       <div class="card plan hot">
         <span class="badge">Most popular</span>
         <h3>Growth</h3><p>For a steady weekly pipeline.</p>
         <div class="price">$88 <small>/ month</small></div>
-        <ul><li>Up to 1,500 prospects a month</li><li>10 active campaigns</li><li>AI-written emails and follow-ups</li><li>Priority support</li></ul>
+        <ul><li>1,000 leads with email a month</li><li>A ready email for every customer type</li><li>🔥 Hot leads + weekly email</li><li>Priority support</li></ul>
         <button class="btn btn-accent plan-btn" type="button">Start free</button>
       </div>
       <div class="card plan">
         <h3>Pro</h3><p>For teams and agencies.</p>
         <div class="price">$150 <small>/ month</small></div>
-        <ul><li>Up to 4,000 prospects a month</li><li>Unlimited campaigns</li><li>AI-written emails and follow-ups</li><li>Dedicated onboarding</li></ul>
+        <ul><li>2,000 leads with email a month</li><li>A ready email for every customer type</li><li>🔥 Hot leads + weekly email</li><li>Dedicated onboarding</li></ul>
         <button class="btn btn-ghost plan-btn" type="button">Start free</button>
       </div>
     </div>
-    <p class="beta-note">Every new account gets 500 free leads for 15 days. No card needed to try it.</p>
+    <p class="beta-note">Every new account gets 500 free leads for 15 days. No card needed to try it. Need extra? Top up from $17 for 140 leads.</p>
   </div>
 </section>
 
@@ -714,12 +716,13 @@ footer{margin-top:auto;padding:28px 0 24px;color:var(--muted);font-size:.88rem}
       <h2>Questions, <em>answered.</em></h2>
     </div>
     <div class="faq">
-      <details><summary>Do I need my own domain or email setup?</summary><p>No. We provide pre-warmed sending domains connected to your brand. If you’d rather send from your own inboxes, you can connect them in a couple of clicks.</p></details>
-      <details><summary>Can I review emails before they go out?</summary><p>Yes. You can approve every email, approve the first batch only, or let it run fully on autopilot once you’re happy with the tone.</p></details>
-      <details><summary>Where do the contacts come from?</summary><p>We combine public company data with verified business contact sources, then check every address before sending.</p></details>
-      <details><summary>Is cold email allowed?</summary><p>B2B outreach is legal in most countries when it’s relevant, identifies the sender and offers an easy opt-out. Every email includes one, and opt-outs are honoured automatically.</p></details>
-      <details><summary>How fast will I see replies?</summary><p>Most campaigns start sending the same day. Replies usually start coming in within the first week, depending on your market and offer.</p></details>
-      <details><summary>Does it send emails by itself?</summary><p>Not yet. Right now every email is saved to your Gmail drafts, so you read it and press send yourself. Automatic sending and follow-ups come next.</p></details>
+      <details><summary>Do I need my own domain or email setup?</summary><p>No. Emails go out from your own Gmail, which you connect once with one click. Replies come straight back to you.</p></details>
+      <details><summary>Can I review emails before they go out?</summary><p>Always. You see the email and can change anything, add links or remove people. Nothing is sent until you press Send.</p></details>
+      <details><summary>Where do the leads come from?</summary><p>From public business listings on maps and from each business’s own website. We show the email the business publishes, which is often a general address like info@ or hello@.</p></details>
+      <details><summary>What do I pay for?</summary><p>Leads. Your plan includes a number of leads with email each month, and only leads that come with an email count. Finding customer types and writing emails are unlimited. Top-ups add more leads whenever you need them.</p></details>
+      <details><summary>Is cold email allowed?</summary><p>B2B outreach is legal in most countries when it’s relevant, identifies the sender and offers an easy way to say no. Every email includes your business address and an opt-out line. Please respect anyone who asks you to stop.</p></details>
+      <details><summary>Does it send emails by itself?</summary><p>You press Send once and it emails every lead individually from your Gmail, up to 50 a day. Automatic follow-ups aren’t available yet.</p></details>
+      <details><summary>What are hot leads?</summary><p>Public posts on Reddit and X where people ask for what you sell. Our agent finds them, keeps only the ones ready to buy, and writes a reply for each. Turn on the weekly email and you get them every Monday.</p></details>
     </div>
   </div>
 </section>
@@ -1577,6 +1580,44 @@ function timeAgo(at){
   const m = Math.round((Date.now() - t) / 60000);
   return m < 60 ? m + ' min ago' : m < 1440 ? Math.round(m / 60) + ' h ago' : Math.round(m / 1440) + ' days ago';
 }
+// Weekly hot-leads email: one customer type and place, emailed every Monday.
+function renderWatch(sg, h, running){
+  const row = $('watchRow');
+  row.hidden = running || !h || !session;
+  if (row.hidden) return;
+  const w = acct.hot_watch;
+  const here = w && w.segment === sg.name && (w.location || '') === (h.loc || '');
+  const t = $('watchText'), b = $('watchBtn');
+  if (here) {
+    t.textContent = '📬 Weekly email on: new hot leads for ' + sg.name.toLowerCase() + (h.loc ? ' in ' + h.loc : '') + ' every Monday'
+      + (acct.gmail ? '.' : '. Connect Gmail (by sending your first email) so we can deliver it.');
+    b.textContent = 'Turn off'; b.dataset.on = '0';
+  } else {
+    t.textContent = w ? '📬 Your weekly email is set to ' + w.segment.toLowerCase() + (w.location ? ' in ' + w.location : '') + '.'
+      : '📬 Get new hot leads like these by email, every Monday.';
+    b.textContent = w ? 'Switch to this one' : 'Email me weekly'; b.dataset.on = '1';
+  }
+}
+$('watchBtn').addEventListener('click', async () => {
+  const b = $('watchBtn'), sg = current.segments[selected], h = sg && sg.hot;
+  const on = b.dataset.on === '1'; const label = b.textContent;
+  b.disabled = true; b.textContent = 'One moment…';
+  try {
+    const r = await fetch('/api/hot?watch=1', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + await freshToken() },
+      body: JSON.stringify({ on, summary: current.summary, segment: sg.name, location: (h && h.loc) || '', sender: senderName(), site: current.site }) });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) throw d;
+    acct = { ...acct, hot_watch: d.on ? { segment: d.segment, location: d.location, last: null } : null };
+    $('hotStatus').className = 'status ok';
+    $('hotStatus').textContent = d.on ? 'Done. Every Monday we’ll email you the new people asking for this.' : 'Weekly email turned off.';
+  } catch (e) {
+    $('hotStatus').className = 'status err';
+    $('hotStatus').textContent = e && e.error === 'hot_trial_over' ? 'Your free week of hot leads is over. Pick a plan in Leads & plans to get the weekly email.' : 'Couldn’t change that. Try again.';
+  }
+  b.disabled = false; b.textContent = label;
+  renderWatch(sg, h, false); loadAccount();
+});
+
 function renderHot(){
   const sg = current.segments[selected];
   const box = $('hotBox'), list = $('hotList'), st = $('hotStatus');
@@ -1592,6 +1633,7 @@ function renderHot(){
   else if (h && h.error) { st.className = 'status err'; st.textContent = h.error; }
   else if (matches.length) { st.className = 'status ok'; st.textContent = 'Reply on their post while it’s fresh. We wrote a reply for each.'; }
   else if (h) { st.className = 'status err'; st.textContent = 'Nobody asking for this right now. Try again later or another customer type.'; }
+  renderWatch(sg, h, running);
   list.replaceChildren();
   matches.forEach(m => {
     const p = h.posts[m.i]; if (!p) return;

@@ -6,6 +6,10 @@
   },
   "rewrites": [
     {
+      "source": "/api/hot-digest/:step",
+      "destination": "/api/hot?digest=:step"
+    },
+    {
       "source": "/api/billing/:action",
       "destination": "/api/billing?do=:action"
     },
@@ -18,5 +22,15 @@
       "destination": "/api/config?health=1"
     }
   ],
-  "cleanUrls": true
+  "cleanUrls": true,
+  "crons": [
+    {
+      "path": "/api/hot-digest/start",
+      "schedule": "0 7 * * 1"
+    },
+    {
+      "path": "/api/hot-digest/send",
+      "schedule": "0 10 * * *"
+    }
+  ]
 }
