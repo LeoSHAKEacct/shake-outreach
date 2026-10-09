@@ -391,7 +391,7 @@ footer{margin-top:auto;padding:28px 0 24px;color:var(--muted);font-size:.88rem}
       <a href="#faq">FAQ</a>
     </nav>
     <div class="nav-right">
-      <button class="credit-chip" type="button" id="creditChip" hidden>500 leads</button>
+      <button class="credit-chip" type="button" id="creditChip" hidden></button>
       <button class="user-btn" type="button" id="profileBtn" hidden><span class="avatar" id="avatar"></span><span id="userName"></span></button>
       <button class="btn btn-ghost" type="button" id="signInBtn" hidden>Sign in</button>
       <a href="#start" class="btn btn-dark" id="getStarted">Get started</a>
@@ -828,15 +828,29 @@ const leadsLeft = () => leadsOf(acct.credits_left);
 const leadsTotal = () => leadsOf(acct.start_credits);
 const num = n => Number(n || 0).toLocaleString('en-US');
 function money(n){ return '$' + Number(n || 0).toFixed(2); }
+// Always ask Supabase for the current session so an expired token gets refreshed first.
+async function freshToken(force){
+  if (!sb) return session && session.access_token;
+  try {
+    const { data } = force ? await sb.auth.refreshSession() : await sb.auth.getSession();
+    if (data && data.session) session = data.session;
+  } catch {}
+  return session && session.access_token;
+}
 async function loadAccount(){
   if (!session) return;
-  try {
-    const r = await fetch('/api/me', { headers: { Authorization: 'Bearer ' + session.access_token } });
-    if (r.ok) { acct = await r.json(); renderAccount(); }
-  } catch {}
+  for (const force of [false, true]) {
+    try {
+      const r = await fetch('/api/me', { headers: { Authorization: 'Bearer ' + await freshToken(force) } });
+      if (r.ok) { acct = { ...(await r.json()), loaded: true, loadedFor: session && session.user.id }; renderAccount(); return; }
+      if (r.status !== 401) return;
+    } catch { return; }
+  }
 }
 function renderAccount(){
-  document.getElementById('creditChip').textContent = num(leadsLeft()) + ' leads';
+  if (!acct.loaded) return; // never show placeholder numbers as if they were the account
+  document.getElementById('creditChip').hidden = !(authOn && session);
+  document.getElementById('creditChip').textContent = money(acct.credits_left) + ' credits';
   document.getElementById('billLeft').textContent = num(leadsLeft());
   document.getElementById('billStart').textContent = num(leadsTotal());
   document.getElementById('billLeads').textContent = num(acct.leads_found);
@@ -897,7 +911,7 @@ async function billingCall(action, body, btn){
   const label = btn.textContent;
   btn.disabled = true; btn.textContent = 'One moment…';
   try {
-    const r = await fetch('/api/billing/' + action, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + session.access_token }, body: JSON.stringify({ ...(body || {}), action }) });
+    const r = await fetch('/api/billing/' + action, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + await freshToken() }, body: JSON.stringify({ ...(body || {}), action }) });
     const d = await r.json().catch(() => ({}));
     if (!r.ok) throw d;
     return d;
@@ -997,7 +1011,7 @@ function renderAuth(){
   document.getElementById('mSignIn').hidden = !on || inn;
   document.getElementById('mProfile').hidden = !on || !inn;
   document.getElementById('profileBtn').hidden = !on || !inn;
-  document.getElementById('creditChip').hidden = !on || !inn;
+  document.getElementById('creditChip').hidden = !on || !inn || !acct.loaded;
   document.getElementById('getStarted').hidden = on && inn;
   document.getElementById('mGetStarted').hidden = on && inn;
   const app = on && inn;
@@ -1337,7 +1351,7 @@ async function findLeads(){
   renderAnalysis();
   try {
     const first = await leadsApi('POST', { query: sg.search || sg.name, location: loc, osm: sg.osm || [] });
-    if (first.account) { acct = first.account; renderAccount(); }
+    if (first.account) { acct = { ...first.account, loaded: true, loadedFor: acct.loadedFor }; renderAccount(); }
     const ticket = first.ticket;
     sg.leadsSource = ticket ? 'maps' : (first.source || 'maps');
     if (!ticket) sg.leads = first.leads || [];
@@ -1346,7 +1360,7 @@ async function findLeads(){
       await new Promise(r => setTimeout(r, 6000));
       const res = await leadsApi('GET', ticket);
       sg.leads = res.leads;
-      if (res.account) { acct = res.account; renderAccount(); }
+      if (res.account) { acct = { ...res.account, loaded: true, loadedFor: acct.loadedFor }; renderAccount(); }
       if (selected === segIndex) renderLeads();
       if (['SUCCEEDED', 'FAILED', 'ABORTED', 'TIMED-OUT'].includes(res.status) || Date.now() - started > 6 * 60000) break;
     }
