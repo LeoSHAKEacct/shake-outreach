@@ -80,7 +80,9 @@ export function account(user) {
     payments: Boolean(process.env.STRIPE_SECRET_KEY),
     paid: isPaid(user || {}),
     hot_days_left: user ? hotDaysLeft(user) : 0,
-    hot_watch: m.hot_watch && m.hot_watch.on ? { segment: m.hot_watch.segment, location: m.hot_watch.location, last: m.hot_watch.last || null } : null,
+    hot_watches: (Array.isArray(m.hot_watches) ? m.hot_watches : (m.hot_watch ? [m.hot_watch] : [])).filter(w => w && w.on)
+      .map(w => ({ segment: w.segment, location: w.location, last: w.last ? { at: w.last.at, count: w.last.count, delivered: w.last.delivered } : null })),
+    hot_watch_limit: ({ pro: 3, growth: 2 })[String(m.plan || "").toLowerCase()] || 1,
     tracked: tracking(),
   };
 }

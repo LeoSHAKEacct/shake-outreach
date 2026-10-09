@@ -701,20 +701,20 @@ footer{margin-top:auto;padding:28px 0 24px;color:var(--muted);font-size:.88rem}
       <div class="card plan">
         <h3>Starter</h3><p>For founders testing outbound.</p>
         <div class="price">$50 <small>/ month</small></div>
-        <ul><li>500 leads with email a month</li><li>A ready email for every customer type</li><li>Send from your Gmail</li><li>🔥 Hot leads + weekly email</li></ul>
+        <ul><li>500 leads with email a month</li><li>A ready email for every customer type</li><li>Send from your Gmail</li><li>🔥 Hot leads + 1 weekly email</li></ul>
         <button class="btn btn-ghost plan-btn" type="button">Start free</button>
       </div>
       <div class="card plan hot">
         <span class="badge">Most popular</span>
         <h3>Growth</h3><p>For a steady weekly pipeline.</p>
         <div class="price">$88 <small>/ month</small></div>
-        <ul><li>1,000 leads with email a month</li><li>A ready email for every customer type</li><li>🔥 Hot leads + weekly email</li><li>Priority support</li></ul>
+        <ul><li>1,000 leads with email a month</li><li>A ready email for every customer type</li><li>🔥 Hot leads + 2 weekly emails</li><li>Priority support</li></ul>
         <button class="btn btn-accent plan-btn" type="button">Start free</button>
       </div>
       <div class="card plan">
         <h3>Pro</h3><p>For teams and agencies.</p>
         <div class="price">$150 <small>/ month</small></div>
-        <ul><li>2,000 leads with email a month</li><li>A ready email for every customer type</li><li>🔥 Hot leads + weekly email</li><li>Dedicated onboarding</li></ul>
+        <ul><li>2,000 leads with email a month</li><li>A ready email for every customer type</li><li>🔥 Hot leads + 3 weekly emails</li><li>Dedicated onboarding</li></ul>
         <button class="btn btn-ghost plan-btn" type="button">Start free</button>
       </div>
     </div>
@@ -803,9 +803,9 @@ footer{margin-top:auto;padding:28px 0 24px;color:var(--muted);font-size:.88rem}
     </div>
     <h3 class="page-sub">Plans</h3>
     <div class="plans plans-page">
-      <div class="card plan"><h3>Starter</h3><div class="price">$50 <small>/ month</small></div><ul><li>500 leads with email a month</li><li>AI emails for every lead</li><li>Send from your Gmail</li><li>🔥 Hot leads in real time</li></ul><button class="btn btn-ghost activate" type="button" data-plan="Starter">Activate</button></div>
-      <div class="card plan hot"><span class="badge">Most popular</span><h3>Growth</h3><div class="price">$88 <small>/ month</small></div><ul><li>1,000 leads with email a month</li><li>AI emails for every lead</li><li>🔥 Hot leads in real time</li><li>Priority support</li></ul><button class="btn btn-accent activate" type="button" data-plan="Growth">Activate</button></div>
-      <div class="card plan"><h3>Pro</h3><div class="price">$150 <small>/ month</small></div><ul><li>2,000 leads with email a month</li><li>AI emails for every lead</li><li>🔥 Hot leads in real time</li><li>Dedicated onboarding</li></ul><button class="btn btn-ghost activate" type="button" data-plan="Pro">Activate</button></div>
+      <div class="card plan"><h3>Starter</h3><div class="price">$50 <small>/ month</small></div><ul><li>500 leads with email a month</li><li>AI emails for every lead</li><li>Send from your Gmail</li><li>🔥 Hot leads + 1 weekly email</li></ul><button class="btn btn-ghost activate" type="button" data-plan="Starter">Activate</button></div>
+      <div class="card plan hot"><span class="badge">Most popular</span><h3>Growth</h3><div class="price">$88 <small>/ month</small></div><ul><li>1,000 leads with email a month</li><li>AI emails for every lead</li><li>🔥 Hot leads + 2 weekly emails</li><li>Priority support</li></ul><button class="btn btn-accent activate" type="button" data-plan="Growth">Activate</button></div>
+      <div class="card plan"><h3>Pro</h3><div class="price">$150 <small>/ month</small></div><ul><li>2,000 leads with email a month</li><li>AI emails for every lead</li><li>🔥 Hot leads + 3 weekly emails</li><li>Dedicated onboarding</li></ul><button class="btn btn-ghost activate" type="button" data-plan="Pro">Activate</button></div>
     </div>
     <p class="status" id="planNote" style="text-align:center;margin-top:16px"></p>
     <h3 class="page-sub">Top up</h3>
@@ -1600,7 +1600,6 @@ async function findHot(){
   sg.hot = { posts: [], matches: [], loc, error: '' };
   hotRun = { segIndex, msg: 'Our agent is scanning the internet in real time for people looking for this right now' + (loc ? ' in ' + loc : '') + '. Takes 1–3 minutes.' };
   renderAnalysis();
-  $('hotBox').scrollIntoView({ behavior: 'smooth', block: 'start' });
   try {
     const { ticket } = await hotApi('POST', '/api/hot', { summary: current.summary, segment: sg.name, location: loc });
     const started = Date.now();
@@ -1624,7 +1623,11 @@ async function findHot(){
   } finally {
     hotRun = null;
     loadAccount();
-    if (selected === segIndex) renderAnalysis();
+    if (selected === segIndex) {
+      renderAnalysis();
+      // Only move the page once there's something to look at.
+      if ((sg.hot.matches || []).length) $('hotBox').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
   }
 }
 function timeAgo(at){
@@ -1637,21 +1640,29 @@ function renderWatch(sg, h, running){
   const row = $('watchRow');
   row.hidden = running || !h || !session;
   if (row.hidden) return;
-  const w = acct.hot_watch;
-  const here = w && w.segment === sg.name && (w.location || '') === (h.loc || '');
+  const list = acct.hot_watches || [], limit = acct.hot_watch_limit || 1;
+  const key = w => (w.segment + '|' + (w.location || '')).toLowerCase();
+  const here = list.some(w => key(w) === key({ segment: sg.name, location: h.loc || '' }));
+  const name = w => w.segment.toLowerCase() + (w.location ? ' in ' + w.location : '');
   const t = $('watchText'), b = $('watchBtn');
+  b.hidden = false;
   if (here) {
-    t.textContent = '📬 Weekly email on: new hot leads for ' + sg.name.toLowerCase() + (h.loc ? ' in ' + h.loc : '') + ' every Monday'
-      + (acct.gmail ? '.' : '. Connect Gmail (by sending your first email) so we can deliver it.');
+    t.textContent = '📬 Weekly email on: new hot leads for ' + name({ segment: sg.name, location: h.loc }) + ' every Monday'
+      + (acct.gmail ? '.' : '. Connect Gmail (by sending your first email) so we can deliver it.')
+      + (list.length > 1 ? ' (' + list.length + ' of ' + limit + ' weekly emails in use)' : '');
     b.textContent = 'Turn off'; b.dataset.on = '0';
+  } else if (list.length < limit) {
+    t.textContent = '📬 Get new hot leads like these by email, every Monday.' + (list.length ? ' You have ' + list.length + ' of ' + limit + ' in use.' : '');
+    b.textContent = 'Email me weekly'; b.dataset.on = '1';
   } else {
-    t.textContent = w ? '📬 Your weekly email is set to ' + w.segment.toLowerCase() + (w.location ? ' in ' + w.location : '') + '.'
-      : '📬 Get new hot leads like these by email, every Monday.';
-    b.textContent = w ? 'Switch to this one' : 'Email me weekly'; b.dataset.on = '1';
+    t.textContent = '📬 Your plan includes ' + limit + ' weekly email' + (limit === 1 ? '' : 's') + ', in use for ' + (n => n.length > 1 ? n.slice(0, -1).join(', ') + ' and ' + n[n.length - 1] : n[0])(list.map(name)) + '. '
+      + (limit < 3 ? (limit === 1 ? 'Growth includes 2 and Pro 3.' : 'Pro includes 3.') : 'Turn one off to add this one.');
+    if (limit < 3) { b.textContent = 'Upgrade'; b.dataset.on = 'upgrade'; } else b.hidden = true;
   }
 }
 $('watchBtn').addEventListener('click', async () => {
   const b = $('watchBtn'), sg = current.segments[selected], h = sg && sg.hot;
+  if (b.dataset.on === 'upgrade') { location.hash = 'billing'; return; }
   const on = b.dataset.on === '1'; const label = b.textContent;
   b.disabled = true; b.textContent = 'One moment…';
   try {
@@ -1659,12 +1670,14 @@ $('watchBtn').addEventListener('click', async () => {
       body: JSON.stringify({ on, summary: current.summary, segment: sg.name, location: (h && h.loc) || '', sender: senderName(), site: current.site }) });
     const d = await r.json().catch(() => ({}));
     if (!r.ok) throw d;
-    acct = { ...acct, hot_watch: d.on ? { segment: d.segment, location: d.location, last: null } : null };
+    acct = { ...acct, hot_watches: d.watches || [] };
     $('hotStatus').className = 'status ok';
     $('hotStatus').textContent = d.on ? 'Done. Every Monday we’ll email you the new people asking for this.' : 'Weekly email turned off.';
   } catch (e) {
     $('hotStatus').className = 'status err';
-    $('hotStatus').textContent = e && e.error === 'hot_trial_over' ? 'Your free week of hot leads is over. Pick a plan in Leads & plans to get the weekly email.' : 'Couldn’t change that. Try again.';
+    $('hotStatus').textContent = e && e.error === 'hot_trial_over' ? 'Your free week of hot leads is over. Pick a plan in Leads & plans to get the weekly email.'
+      : e && e.error === 'watch_limit' ? 'Your plan includes ' + e.limit + ' weekly email' + (e.limit === 1 ? '' : 's') + '. Upgrade in Leads & plans to add more.'
+      : 'Couldn’t change that. Try again.';
   }
   b.disabled = false; b.textContent = label;
   renderWatch(sg, h, false); loadAccount();

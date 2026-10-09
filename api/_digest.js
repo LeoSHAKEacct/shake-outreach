@@ -14,27 +14,42 @@ const MAX_ITEMS = 10;
 const eligible = user => isPaid(user) || (hotDaysLeft(user) || 0) > 0;
 const hash = url => crypto.createHash("sha1").update(url).digest("base64url").slice(0, 12);
 
+// Each user can have several weekly emails (one per customer type + place), by plan.
+export const watchLimit = user => ({ pro: 3, growth: 2 })[String((user.app_metadata || {}).plan || "").toLowerCase()] || 1;
+export function watchList(m) {
+  if (Array.isArray(m.hot_watches)) return m.hot_watches.filter(w => w && w.on);
+  return m.hot_watch && m.hot_watch.on ? [m.hot_watch] : [];   // older accounts had a single one
+}
+const watchKey = (segment, location) => (String(segment || "") + "|" + String(location || "")).toLowerCase();
+
 // POST ?watch=1 {on, summary, segment, location, sender, site}
 export async function setWatch(req, res, user) {
   if (req.method !== "POST") return send(res, 405, { error: "method" });
   const b = readBody(req);
   const m = user.app_metadata || {};
+  const list = watchList(m);
+  const segment = clip(b.segment, 120), location = clip(b.location, 80);
+  const key = watchKey(segment, location);
   if (!b.on) {
-    await updateAppMeta(user, { hot_watch: { ...(m.hot_watch || {}), on: false, pending: null } });
-    return send(res, 200, { on: false });
+    const next = list.filter(w => watchKey(w.segment, w.location) !== key);
+    await updateAppMeta(user, { hot_watches: next, hot_watch: null });
+    return send(res, 200, { on: false, watches: next.map(w => ({ segment: w.segment, location: w.location })) });
   }
   if (!eligible(user)) return send(res, 402, { error: "hot_trial_over" });
-  const summary = clip(b.summary, 400), segment = clip(b.segment, 120), location = clip(b.location, 80);
+  const existing = list.find(w => watchKey(w.segment, w.location) === key);
+  if (!existing && list.length >= watchLimit(user)) return send(res, 402, { error: "watch_limit", limit: watchLimit(user) });
+  const summary = clip(b.summary, 400);
   if (!summary) return send(res, 400, { error: "no_query" });
   let q;
   try { q = await writeQueries(summary, segment, location); }
   catch (e) { return send(res, 502, { error: e.code || "upstream_error" }); }
-  const prev = m.hot_watch || {};
-  await updateAppMeta(user, { hot_watch: {
+  const w = {
     on: true, summary, segment, location, sender: clip(b.sender, 60), site: clip(b.site, 120), q,
-    pending: null, seen: prev.seen || [], last: prev.last || null, since: Date.now(),
-  } });
-  return send(res, 200, { on: true, segment, location });
+    pending: null, seen: (existing && existing.seen) || [], last: (existing && existing.last) || null, since: Date.now(),
+  };
+  const next = [...list.filter(x => watchKey(x.segment, x.location) !== key), w];
+  await updateAppMeta(user, { hot_watches: next, hot_watch: null });
+  return send(res, 200, { on: true, segment, location, watches: next.map(x => ({ segment: x.segment, location: x.location })) });
 }
 
 function cronAllowed(req) {
@@ -54,7 +69,7 @@ async function watchers() {
     if (!r.ok) break;
     const d = await r.json();
     const users = d.users || [];
-    out.push(...users.filter(u => u.app_metadata && u.app_metadata.hot_watch && u.app_metadata.hot_watch.on));
+    out.push(...users.filter(u => u.app_metadata && watchList(u.app_metadata).length));
     if (users.length < 200) break;
   }
   return out;
@@ -67,52 +82,59 @@ async function inTurns(items, size, fn, started) {
   }
 }
 
-// Cron, Monday morning: start this week's searches.
+// Cron, Monday morning: start this week's searches, one per weekly email.
 export async function digestStart(req, res) {
   if (!cronAllowed(req)) return send(res, 401, { error: "cron_only" });
   const started = Date.now();
-  const list = (await watchers()).filter(u => !u.app_metadata.hot_watch.pending);
+  const list = await watchers();
   let count = 0;
-  await inTurns(list, 5, async u => {
-    const w = u.app_metadata.hot_watch;
-    if (!eligible(u)) { await updateAppMeta(u, { hot_watch: { ...w, on: false } }); return; }
-    const q = w.q || await writeQueries(w.summary, w.segment, w.location);
-    const parts = await startHotRuns(q, "week");
-    if (parts[0] === "-" && parts[2] === "-") return;
-    await updateAppMeta(u, { hot_watch: { ...w, q, pending: { parts, at: Date.now() } } });
-    count++;
+  await inTurns(list, 4, async u => {
+    const watches = watchList(u.app_metadata).slice(0, watchLimit(u));
+    if (!eligible(u)) { await updateAppMeta(u, { hot_watches: [], hot_watch: null }); return; }
+    const next = [];
+    for (const w of watches) {
+      if (w.pending) { next.push(w); continue; }
+      const q = w.q || await writeQueries(w.summary, w.segment, w.location);
+      const parts = await startHotRuns(q, "week");
+      if (parts[0] === "-" && parts[2] === "-") { next.push({ ...w, q }); continue; }
+      next.push({ ...w, q, pending: { parts, at: Date.now() } }); count++;
+    }
+    await updateAppMeta(u, { hot_watches: next, hot_watch: null });
   }, started);
-  return send(res, 200, { started: count, watchers: list.length });
+  return send(res, 200, { started: count, users: list.length });
 }
 
 // Cron, later (runs daily): score finished searches and email the results.
 export async function digestSend(req, res) {
   if (!cronAllowed(req)) return send(res, 401, { error: "cron_only" });
   const started = Date.now();
-  const list = (await watchers()).filter(u => u.app_metadata.hot_watch.pending);
+  const list = (await watchers()).filter(u => watchList(u.app_metadata).some(w => w.pending));
   let sent = 0;
   await inTurns(list, 3, async u => {
-    const w = u.app_metadata.hot_watch;
-    const { done, posts } = await collectRuns(w.pending.parts);
-    if (!done && Date.now() - w.pending.at < 6 * 3600 * 1000) return; // still running, try next time
-    const seen = new Set(w.seen || []);
-    const fresh = posts.filter(p => !seen.has(hash(p.url))).slice(0, 80);
-    let items = [];
-    if (fresh.length) {
-      const matches = await scorePosts(w.summary, w.sender, fresh.map(p => p.text));
-      items = matches.slice(0, MAX_ITEMS).map(m => ({ ...fresh[m.i], score: m.score, why: m.why, reply: m.reply }));
+    const next = [];
+    for (const w of watchList(u.app_metadata)) {
+      if (!w.pending) { next.push(w); continue; }
+      const { done, posts } = await collectRuns(w.pending.parts);
+      if (!done && Date.now() - w.pending.at < 6 * 3600 * 1000) { next.push(w); continue; } // still running
+      const seen = new Set(w.seen || []);
+      const fresh = posts.filter(p => !seen.has(hash(p.url))).slice(0, 80);
+      let items = [];
+      if (fresh.length) {
+        const matches = await scorePosts(w.summary, w.sender, fresh.map(p => p.text));
+        items = matches.slice(0, MAX_ITEMS).map(m => ({ ...fresh[m.i], score: m.score, why: m.why, reply: m.reply }));
+      }
+      let delivered = false;
+      const gmail = (u.app_metadata || {}).gmail;
+      if (items.length && gmail && gmail.rt) delivered = await emailDigest(u, w, items).catch(() => false);
+      if (delivered) sent++;
+      next.push({ ...w, pending: null,
+        seen: [...seen, ...items.map(p => hash(p.url))].slice(-400),
+        last: { at: Date.now(), count: items.length, delivered, items: items.map(p => ({ source: p.source, url: p.url, text: p.text.slice(0, 280), why: p.why, reply: p.reply, score: p.score })) },
+      });
     }
-    let delivered = false;
-    const gmail = (u.app_metadata || {}).gmail;
-    if (items.length && gmail && gmail.rt) delivered = await emailDigest(u, w, items).catch(() => false);
-    if (delivered) sent++;
-    await updateAppMeta(u, { hot_watch: {
-      ...w, pending: null,
-      seen: [...seen, ...items.map(p => hash(p.url))].slice(-400),
-      last: { at: Date.now(), count: items.length, delivered, items: items.map(p => ({ source: p.source, url: p.url, text: p.text.slice(0, 280), why: p.why, reply: p.reply, score: p.score })) },
-    } });
+    await updateAppMeta(u, { hot_watches: next, hot_watch: null });
   }, started);
-  return send(res, 200, { processed: list.length, emailed: sent });
+  return send(res, 200, { users: list.length, emailed: sent });
 }
 
 const esc = t => String(t || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
