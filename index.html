@@ -1091,7 +1091,7 @@ function setPending(action, loc){
   try { localStorage.setItem('so_pending', JSON.stringify({ action, loc, selected, at: Date.now() })); } catch {}
   if (typeof current !== 'undefined') store.set('analysis', current);
   store.set('selected', selected);
-  if (loc) store.set('loc', loc);
+  if (loc && typeof current !== 'undefined') { current.loc = loc; store.set('analysis', current); }
 }
 function takePending(){
   let p = null;
@@ -1452,8 +1452,8 @@ function renderAnalysis(){
   if (!current.example) {
     const f = document.createElement('div'); f.className = 'lead-find';
     const loc = document.createElement('input'); loc.id = 'leadLoc'; loc.type = 'text';
-    loc.placeholder = 'City or country, e.g. Bogotá, Colombia';
-    loc.value = store.get('loc', ''); loc.setAttribute('aria-label', 'Where to look for leads');
+    loc.placeholder = 'Where are these customers? City or country';
+    loc.value = current.loc || ''; loc.setAttribute('aria-label', 'Where to look for leads');
     const b = document.createElement('button'); b.type = 'button'; b.className = 'btn btn-accent'; b.id = 'leadBtn';
     b.textContent = leadRun ? 'Finding 💸' : 'Find real leads';
     b.disabled = !!leadRun;
@@ -1469,7 +1469,7 @@ function renderAnalysis(){
       tip.textContent = 'Our agent scans the internet in real time for people looking for this right now' + (city ? ' in ' + city : '') + '. Takes 1–3 minutes.';
     };
     setTip();
-    loc.addEventListener('input', setTip);
+    loc.addEventListener('input', () => { setTip(); current.loc = loc.value.trim(); });
     h.addEventListener('mouseenter', setTip);
     h.setAttribute('aria-describedby', 'hotTip');
     wrap.append(h, tip);
@@ -1515,7 +1515,7 @@ async function findLeads(){
   const segIndex = selected, sg = current.segments[segIndex];
   if (!loc) { sg.leadsError = leadsError('no_location'); renderLeads(); $('leadLoc').focus(); return; }
   if (!session) { setPending('leads', loc); openAuth('up', 'Create a free account to see these leads. You get 500 free leads.'); return; }
-  store.set('loc', loc);
+  current.loc = loc;
   sg.leads = []; sg.leadsLoc = loc; sg.leadsError = '';
   leadRun = { segIndex, msg: 'Finding 💸 real ' + sg.name.toLowerCase() + ' in ' + loc + '. This can take up to a minute or two.' };
   renderAnalysis();
@@ -1596,7 +1596,7 @@ async function findHot(){
   if (!session) { setPending('hot', ($('leadLoc') && $('leadLoc').value.trim()) || ''); openAuth('up', 'Create a free account to see who’s asking right now. Hot leads are free for your first week.'); return; }
   const segIndex = selected, sg = current.segments[segIndex];
   const loc = ($('leadLoc') && $('leadLoc').value.trim()) || '';
-  if (loc) store.set('loc', loc);
+  if (loc && typeof current !== 'undefined') { current.loc = loc; store.set('analysis', current); }
   sg.hot = { posts: [], matches: [], loc, error: '' };
   hotRun = { segIndex, msg: 'Our agent is scanning the internet in real time for people looking for this right now' + (loc ? ' in ' + loc : '') + '. Takes 1–3 minutes.' };
   renderAnalysis();
