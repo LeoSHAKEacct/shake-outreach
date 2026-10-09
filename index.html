@@ -887,7 +887,7 @@ function fillProfile(){
   document.getElementById('profilePlan').textContent = acct.paid ? planName(acct.plan) : 'Free trial';
   document.getElementById('profileCredits').textContent = num(leadsLeft());
 }
-function closeProfile(){ if (location.hash === '#profile') location.hash = ''; }
+function closeProfile(){ if (location.hash === '#profile') clearHash(); }
 
 // ---- account (credits) ----
 let acct = { credits_left: 50, credits_used: 0, start_credits: 50, leads_found: 0, emails_sent: 0, lead_price: 0.1, plan: 'trial', gmail: '', tracked: false };
@@ -953,8 +953,30 @@ function route(){
   if (page === 'profile') fillProfile();
   if (page) { window.scrollTo(0, 0); loadAccount(); }
 }
+// Leave a page without leaving a bare "#" at the end of the address.
+function clearHash(){
+  if (location.href.includes('#')) history.pushState(null, '', location.pathname + location.search);
+  route();
+}
 addEventListener('hashchange', route);
-document.querySelectorAll('[data-back]').forEach(b => b.addEventListener('click', () => { location.hash = ''; }));
+document.querySelectorAll('[data-back]').forEach(b => b.addEventListener('click', clearHash));
+// Section links (#how, #pricing, the logo…) scroll the page without adding anything to the address.
+document.addEventListener('click', e => {
+  const a = e.target.closest && e.target.closest('a[href^="#"]');
+  if (!a || e.defaultPrevented || e.metaKey || e.ctrlKey || e.shiftKey) return;
+  const id = a.getAttribute('href').slice(1);
+  if (id === 'profile' || id === 'billing') return;
+  e.preventDefault();
+  if (document.body.dataset.page) clearHash();
+  const el = id && document.getElementById(id);
+  if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' }); else window.scrollTo({ top: 0, behavior: 'smooth' });
+});
+// (a bare "#" reads as an empty location.hash, so look at the whole address)
+if (location.href.endsWith('#') || (/^#[a-z]+$/.test(location.hash) && !/^#(profile|billing)$/.test(location.hash))) {
+  const el = document.getElementById(location.hash.slice(1));
+  history.replaceState(null, '', location.pathname + location.search);
+  if (el) requestAnimationFrame(() => el.scrollIntoView({ block: 'start' }));
+}
 document.getElementById('creditChip').addEventListener('click', () => { location.hash = 'billing'; });
 // Plans: the first purchase goes through Stripe Checkout. After that everything happens here:
 // upgrades are charged the difference now, downgrades and cancelling take effect at the next renewal.
@@ -1230,7 +1252,7 @@ document.getElementById('authClose').addEventListener('click', closeAuth);
 document.getElementById('authModal').addEventListener('click', e => { if (e.target.id === 'authModal') closeAuth(); });
 addEventListener('keydown', e => { if (e.key === 'Escape') closeAuth(); });
 for (const id of ['signInBtn', 'mSignIn']) document.getElementById(id).addEventListener('click', e => { e.preventDefault(); openAuth('in'); });
-document.getElementById('signOutBtn').addEventListener('click', async () => { setActive(false); if (sb) await sb.auth.signOut(); location.hash = ''; });
+document.getElementById('signOutBtn').addEventListener('click', async () => { setActive(false); if (sb) await sb.auth.signOut(); clearHash(); });
 for (const id of ['profileBtn', 'mProfile']) document.getElementById(id).addEventListener('click', e => { e.preventDefault(); if (session) openProfile(); });
 document.getElementById('saveName').addEventListener('click', async () => {
   const st = document.getElementById('profileStatus');
