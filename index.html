@@ -218,6 +218,8 @@ header.scrolled{border-color:var(--line)}
 .leads-tools{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:4px 0 10px}
 .leads-tools .btn{height:34px;padding:0 14px;font-size:.84rem}
 .leads-tools .muted{font-size:.82rem}
+.hold-pill{position:fixed;left:16px;bottom:16px;z-index:60;display:flex;align-items:center;gap:10px;background:var(--card);border:1px solid var(--line);border-radius:999px;padding:7px 8px 7px 14px;font-size:.84rem;box-shadow:var(--shadow)}
+.hold-pill button{border:0;background:var(--grey-soft);color:var(--ink);border-radius:999px;padding:5px 12px;font:600 .8rem Inter,sans-serif;cursor:pointer}
 .lead-credit{font-size:.75rem;color:var(--muted);margin-top:10px}
 .lead-credit a{color:var(--muted)}
 .beta-note{margin:22px auto 0;text-align:center;font-size:.9rem;color:var(--muted)}
@@ -827,6 +829,7 @@ footer{margin-top:auto;padding:28px 0 24px;color:var(--muted);font-size:.88rem}
 </section>
 </main>
 
+<div class="hold-pill" id="holdPill" hidden><span id="holdText">🎵 Hold music</span><button type="button" id="holdToggle">Turn off</button></div>
 <footer>
   <div class="wrap foot">
     <nav><a href="#how">How it works</a><a href="#faq">FAQ</a><a href="/privacy">Privacy</a><a href="/terms">Terms</a><a href="mailto:contact@shakeapp.today">contact@shakeapp.today</a></nav>
@@ -1525,6 +1528,7 @@ async function findLeads(){
   if (!session) { setPending('leads', loc); openAuth('up', 'Create a free account to see these leads. You get 500 free leads.'); return; }
   current.loc = loc;
   sg.leads = []; sg.leadsLoc = loc; sg.leadsError = '';
+  holdStart();
   leadRun = { segIndex, msg: 'Finding 💸 real ' + sg.name.toLowerCase() + ' in ' + loc + '. This can take up to a minute or two.' };
   renderAnalysis();
   try {
@@ -1546,7 +1550,7 @@ async function findLeads(){
   } catch (e) {
     sg.leadsError = leadsError(e && e.code);
   } finally {
-    leadRun = null;
+    leadRun = null; holdStop();
     if (selected === segIndex) renderAnalysis();
   }
 }
@@ -1573,6 +1577,8 @@ async function copyLeads(kind){
 }
 $('copyLeads').addEventListener('click', () => copyLeads('all'));
 $('copyEmails').addEventListener('click', () => copyLeads('emails'));
+
+$('holdToggle').addEventListener('click', () => setHoldMusic(!hold.on));
 
 function renderLeads(){
   const sg = current.segments[selected];
@@ -1630,6 +1636,7 @@ async function findHot(){
   const loc = ($('leadLoc') && $('leadLoc').value.trim()) || '';
   if (loc && typeof current !== 'undefined') { current.loc = loc; store.set('analysis', current); }
   sg.hot = { posts: [], matches: [], loc, error: '' };
+  holdStart();
   hotRun = { segIndex, msg: 'Our agent is scanning the internet in real time for people looking for this right now' + (loc ? ' in ' + loc : '') + '. Takes 1–3 minutes.' };
   renderAnalysis();
   try {
@@ -1653,7 +1660,7 @@ async function findHot(){
   } catch (e) {
     sg.hot.error = hotError(e && e.code);
   } finally {
-    hotRun = null;
+    hotRun = null; holdStop();
     loadAccount();
     if (selected === segIndex) {
       renderAnalysis();
@@ -1918,6 +1925,89 @@ function sampleError(e){
 
 // ---- step 1: analyze ----
 let analyzeCtl = null;
+// ---- hold music: a short spoken line, then a soft original tune while we search ----
+// Generated live with Web Audio (no audio files). Starts on a click, so browsers allow it.
+const hold = { ctx: null, master: null, timer: null, users: 0, next: 0, step: 0, speaking: false,
+  on: (() => { try { return localStorage.getItem('so_music') !== 'off'; } catch { return true; } })() };
+const HOLD_CHORDS = [ // [bass, chord tones] in MIDI notes: a relaxed four-chord loop
+  [41, [65, 69, 72, 76]], [40, [64, 67, 71, 74]], [38, [62, 65, 69, 72]], [43, [62, 65, 67, 71]],
+];
+const midiHz = n => 440 * Math.pow(2, (n - 69) / 12);
+function holdNote(freq, t, dur, vol, type){
+  const o = hold.ctx.createOscillator(), g = hold.ctx.createGain();
+  o.type = type; o.frequency.value = freq;
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.exponentialRampToValueAtTime(vol, t + 0.04);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  o.connect(g); g.connect(hold.master); o.start(t); o.stop(t + dur + 0.05);
+}
+function holdSchedule(){
+  const beat = 60 / 84; // 84 bpm
+  while (hold.next < hold.ctx.currentTime + 0.6) {
+    const bar = Math.floor(hold.step / 8) % HOLD_CHORDS.length, sub = hold.step % 8;
+    const [bass, chord] = HOLD_CHORDS[bar], t = hold.next;
+    if (sub === 0) { chord.forEach(n => holdNote(midiHz(n), t, beat * 3.6, 0.035, 'triangle')); holdNote(midiHz(bass), t, beat * 1.8, 0.09, 'sine'); }
+    if (sub === 4) holdNote(midiHz(bass + 7), t, beat * 1.6, 0.07, 'sine');
+    const arp = [0, 2, 1, 3, 2, 1, 3, 2][sub];
+    if (sub % 2 === 1 || sub === 6) holdNote(midiHz(chord[arp] + 12), t, beat * 0.9, 0.045, 'sine');
+    hold.next += beat / 2; hold.step++;
+  }
+}
+function holdMusic(){
+  if (!hold.ctx) {
+    const AC = window.AudioContext || window.webkitAudioContext; if (!AC) return;
+    hold.ctx = new AC(); hold.master = hold.ctx.createGain(); hold.master.connect(hold.ctx.destination);
+  }
+  hold.ctx.resume && hold.ctx.resume();
+  hold.master.gain.cancelScheduledValues(hold.ctx.currentTime);
+  hold.master.gain.setValueAtTime(0.0001, hold.ctx.currentTime);
+  hold.master.gain.exponentialRampToValueAtTime(0.9, hold.ctx.currentTime + 1.5);
+  hold.next = hold.ctx.currentTime + 0.1; hold.step = 0;
+  clearInterval(hold.timer); hold.timer = setInterval(holdSchedule, 200); holdSchedule();
+}
+function holdStart(){
+  hold.users++;
+  renderHoldPill();
+  if (!hold.on || hold.users > 1) return;
+  const go = () => { if (hold.users > 0 && hold.on && !hold.timer) holdMusic(); };
+  try {
+    if (window.speechSynthesis) {
+      const u = new SpeechSynthesisUtterance('Hold on, we are looking for what you need.');
+      u.rate = 0.98; u.pitch = 1.05; u.volume = 0.9;
+      hold.speaking = true; u.onend = u.onerror = () => { hold.speaking = false; go(); };
+      speechSynthesis.cancel(); speechSynthesis.speak(u);
+      setTimeout(go, 4000); // in case the voice never reports it finished
+    } else go();
+  } catch { go(); }
+}
+function holdStop(force){
+  hold.users = force ? 0 : Math.max(0, hold.users - 1);
+  if (hold.users > 0) return;
+  try { window.speechSynthesis && speechSynthesis.cancel(); } catch {}
+  if (hold.ctx && hold.timer) {
+    const t = hold.ctx.currentTime;
+    hold.master.gain.cancelScheduledValues(t);
+    hold.master.gain.setValueAtTime(Math.max(0.0001, hold.master.gain.value), t);
+    hold.master.gain.exponentialRampToValueAtTime(0.0001, t + 1.2);
+    const timer = hold.timer; hold.timer = null;
+    setTimeout(() => { if (!hold.timer) clearInterval(timer); }, 1300);
+  }
+  renderHoldPill();
+}
+function renderHoldPill(){
+  const pill = $('holdPill');
+  pill.hidden = hold.users === 0;
+  $('holdText').textContent = hold.on ? '🎵 Hold music' : '🔇 Music off';
+  $('holdToggle').textContent = hold.on ? 'Turn off' : 'Turn on';
+}
+function setHoldMusic(on){
+  hold.on = on;
+  try { localStorage.setItem('so_music', on ? 'on' : 'off'); } catch {}
+  if (!on) { const n = hold.users; holdStop(true); hold.users = n; }
+  else if (hold.users > 0 && !hold.timer) holdMusic();
+  renderHoldPill();
+}
+
 async function analyze(){
   if (analyzeCtl || $('runBtn').disabled) return;
   const site = cleanSite($('site').value);
@@ -1926,6 +2016,7 @@ async function analyze(){
   $('demo').hidden = false; $('writer').hidden = true;
   $('demo').scrollIntoView({ behavior: 'smooth', block: 'start' });
   setRunning(true);
+  holdStart();
   $('demoUrl').textContent = 'myleads.shakeapp.today/?site=' + site;
   $('summaryText').textContent = 'Working on ' + site + '…';
   $('foundCount').textContent = 'thinking…';
@@ -1970,7 +2061,7 @@ Sort segments by fit, highest first. fit is an integer from 0 to 100.`;
     setSteps(5); renderAnalysis();
     $('runStatus').textContent = sampleError(e);
   } finally {
-    clearInterval(timer); analyzeCtl = null; setRunning(false);
+    clearInterval(timer); analyzeCtl = null; setRunning(false); holdStop();
   }
 }
 
