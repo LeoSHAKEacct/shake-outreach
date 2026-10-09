@@ -198,6 +198,9 @@ header.scrolled{border-color:var(--line)}
 .plan ul li::before{content:"✓";color:var(--accent);font-weight:700;margin-right:10px}
 .plan .btn{margin-top:auto}
 .plan .badge{align-self:flex-start;background:var(--accent);color:#fff;font-size:.72rem;font-weight:600;padding:4px 10px;border-radius:999px;margin-bottom:10px}
+#fitTable tr.scan td{color:var(--muted);transition:color .2s}
+#fitTable tr.scan .bar span{transition:width .4s ease}
+#fitTable tr.scan:first-child td:first-child{color:var(--ink)}
 .lead-credit{font-size:.75rem;color:var(--muted);margin-top:10px}
 .lead-credit a{color:var(--muted)}
 .beta-note{margin:22px auto 0;text-align:center;font-size:.9rem;color:var(--muted)}
@@ -1274,7 +1277,33 @@ function setMode(){
   $('gmailBtn').textContent = mcp ? 'Save to Gmail drafts' : 'Open in Gmail';
 }
 
+// While the AI works, the table cycles through many industries, as if it's searching;
+// it stops on the real ones when the answer arrives.
+const SCAN_POOL = ['Dental clinics','Boutique hotels','Law firms','Real estate agencies','Gyms & studios','Restaurants','Coffee shops','Accounting firms','Marketing agencies','Web design studios','E-commerce brands','Language schools','Car dealerships','Veterinary clinics','Construction companies','Architects','Hair salons','Spas & wellness','Insurance brokers','Recruiting agencies','Coworking spaces','Event planners','Wedding venues','Photographers','Travel agencies','Tour operators','Private schools','Universities','Medical clinics','Physiotherapists','Pharmacies','Logistics firms','Manufacturers','Wholesalers','Software startups','IT service providers','Cybersecurity firms','Fintech startups','Nonprofits','Hostels','Vacation rentals','Bakeries','Florists','Interior designers','Cleaning services','Plumbers & electricians','Solar installers','Auto repair shops','Fashion brands','Jewelry stores','Pet shops','Music schools','Dance studios','Coaches & consultants','Podcast studios','Video producers','Print shops','Breweries','Wineries','Farms & growers'];
+let scanTimer = null;
+function startScan(){
+  stopScan();
+  const tb = document.querySelector('#fitTable tbody');
+  const rows = Array.from({ length: 5 }, () => {
+    const tr = document.createElement('tr'); tr.className = 'row scan';
+    const td1 = document.createElement('td'), td2 = document.createElement('td');
+    const bar = document.createElement('span'); bar.className = 'bar';
+    const fill = document.createElement('span'); bar.append(fill);
+    const pct = document.createElement('span'); td2.append(bar, pct);
+    tr.append(td1, td2); return { tr, td1, fill, pct };
+  });
+  tb.replaceChildren(...rows.map(r => r.tr));
+  const tick = () => {
+    const pick = SCAN_POOL.slice().sort(() => Math.random() - .5).slice(0, 5)
+      .map(name => ({ name, fit: 35 + Math.floor(Math.random() * 60) })).sort((a, b) => b.fit - a.fit);
+    pick.forEach((x, i) => { rows[i].td1.textContent = x.name; rows[i].fill.style.width = x.fit + '%'; rows[i].pct.textContent = x.fit + '%'; });
+  };
+  tick(); scanTimer = setInterval(tick, 450);
+}
+function stopScan(){ clearInterval(scanTimer); scanTimer = null; }
+
 function renderAnalysis(){
+  stopScan();
   $('summaryText').textContent = current.summary;
   $('demoUrl').textContent = 'myleads.shakeapp.today/?site=' + current.site;
   $('foundCount').textContent = current.example ? 'Example' : current.segments.length + (current.segments.length === 1 ? ' customer type' : ' customer types');
@@ -1712,6 +1741,7 @@ async function analyze(){
   $('summaryText').textContent = 'Working on ' + site + '…';
   $('foundCount').textContent = 'thinking…';
   setSteps(0, true);
+  startScan();
 
   if (!sample && !backend) { previewAnalyze(site, offer); return; }
 
