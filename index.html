@@ -369,6 +369,21 @@ footer{margin-top:auto;padding:28px 0 24px;color:var(--muted);font-size:.88rem}
 .env dd.to{font-weight:600;color:var(--ink)}
 .env .lead-find{border-top:1px dashed var(--line);padding-top:16px;margin-top:0}
 .env .lead-find .btn,.env .lead-find input{padding:11px 18px;font-size:.92rem}
+/* Location is required for leads: while it's empty the field glows and shows example places. */
+.loc-field{flex:1;min-width:160px;position:relative;display:flex}
+.loc-field input{flex:1;padding-left:40px!important}
+.loc-pin{position:absolute;left:15px;top:50%;transform:translateY(-50%);font-size:1rem;pointer-events:none}
+.lead-find.need-loc .loc-field input{animation:locGlow 2.2s ease-in-out infinite;border-color:var(--accent)}
+.lead-find.need-loc .loc-pin{animation:pinHop 2.2s ease-in-out infinite}
+.loc-hint{flex-basis:100%;font-size:.82rem;color:var(--accent);font-weight:600;margin:2px 0 0 6px;transition:color .2s}
+.lead-find:not(.need-loc) .loc-hint{display:none}
+.lead-find.loc-nudge .loc-field{animation:locShake .45s ease}
+.lead-find.loc-nudge .loc-field input{border-color:#d4483b!important;box-shadow:0 0 0 4px rgba(212,72,59,.18)!important;animation:none}
+.lead-find.loc-nudge .loc-hint{color:#d4483b}
+@keyframes locGlow{0%,100%{box-shadow:0 0 0 0 rgba(18,147,90,0)}50%{box-shadow:0 0 0 5px rgba(18,147,90,.18)}}
+@keyframes pinHop{0%,60%,100%{transform:translateY(-50%)}70%{transform:translateY(-85%)}80%{transform:translateY(-50%)}88%{transform:translateY(-65%)}}
+@keyframes locShake{0%,100%{transform:translateX(0)}20%{transform:translateX(-8px)}40%{transform:translateX(7px)}60%{transform:translateX(-5px)}80%{transform:translateX(3px)}}
+@media (prefers-reduced-motion:reduce){.lead-find.need-loc .loc-field input,.lead-find.need-loc .loc-pin,.lead-find.loc-nudge .loc-field{animation:none}}
 .env-more{font-size:.85rem;color:var(--muted);justify-self:center}
 @media (max-width:560px){.env{padding:80px 18px 20px}.env dl{grid-template-columns:1fr;gap:2px}.env dd{margin-bottom:8px}}
 .seg-detail{margin-top:18px;background:var(--bg);border-radius:14px;padding:16px;font-size:.9rem;color:var(--ink2);display:grid;gap:8px}
@@ -1528,6 +1543,11 @@ function renderAnalysis(){
     const f = document.createElement('div'); f.className = 'lead-find';
     const loc = document.createElement('input'); loc.id = 'leadLoc'; loc.type = 'text';
     loc.placeholder = 'Where are these customers? City or country';
+    const field = document.createElement('span'); field.className = 'loc-field';
+    const pin = document.createElement('span'); pin.className = 'loc-pin'; pin.textContent = '📍'; pin.setAttribute('aria-hidden', 'true');
+    field.append(pin, loc);
+    const hint = document.createElement('p'); hint.className = 'loc-hint'; hint.id = 'locHint';
+    hint.textContent = '👆 Add a city or country, then press Find real leads';
     loc.value = current.loc || ''; loc.setAttribute('aria-label', 'Where to look for leads');
     const b = document.createElement('button'); b.type = 'button'; b.className = 'btn btn-accent'; b.id = 'leadBtn';
     b.textContent = leadRun ? 'Finding 💸' : 'Find real leads';
@@ -1544,11 +1564,13 @@ function renderAnalysis(){
       tip.textContent = 'Our agent scans the internet in real time for people looking for this right now' + (city ? ' in ' + city : '') + '. Takes 1–3 minutes.';
     };
     setTip();
-    loc.addEventListener('input', () => { setTip(); current.loc = loc.value.trim(); });
+    loc.addEventListener('input', () => { setTip(); current.loc = loc.value.trim(); f.classList.toggle('need-loc', !current.loc); f.classList.remove('loc-nudge'); });
+    f.classList.toggle('need-loc', !loc.value.trim());
+    typePlaces(loc);
     h.addEventListener('mouseenter', setTip);
     h.setAttribute('aria-describedby', 'hotTip');
     wrap.append(h, tip);
-    f.append(loc, b, wrap); d.append(f);
+    f.append(field, b, wrap, hint); d.append(f);
     if (current.segments.length > 1) {
       const more = document.createElement('a'); more.href = '#demo'; more.className = 'env-more'; more.textContent = 'Other customer types ↓';
       more.addEventListener('click', e => { e.preventDefault(); $('demo').scrollIntoView({ behavior: 'smooth', block: 'start' }); });
@@ -1584,11 +1606,43 @@ async function leadsApi(method, pathOrBody){
   if (!r.ok) throw { code: data.error || 'error' };
   return data;
 }
+// Empty location: shake the field, turn it red for a moment and put the cursor there.
+function nudgeLoc(){
+  const input = $('leadLoc'); if (!input) return;
+  const f = input.closest('.lead-find');
+  f.classList.remove('loc-nudge'); void f.offsetWidth; f.classList.add('loc-nudge', 'need-loc');
+  $('locHint').textContent = '👆 Type where to look first: a city or country';
+  const r = input.getBoundingClientRect();
+  if (r.top < 80 || r.bottom > innerHeight - 20) input.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  input.focus({ preventScroll: true });
+  clearTimeout(nudgeLoc.t); nudgeLoc.t = setTimeout(() => f.classList.remove('loc-nudge'), 1600);
+}
+// While the field is empty, its placeholder types out example places.
+const PLACES = ['Miami, FL', 'New Jersey', 'London', 'Austin, Texas', 'Lisbon, Portugal', 'Toronto', 'Dubai', 'Sydney'];
+let placeTimer = null;
+function typePlaces(input){
+  clearTimeout(placeTimer);
+  if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  const base = 'Where are these customers? City or country';
+  let i = 0, n = 0, del = false, pause = 0;
+  const tick = () => {
+    if (!input.isConnected) return;
+    if (input.value || document.activeElement === input) { input.placeholder = base; placeTimer = setTimeout(tick, 600); return; }
+    if (pause > 0) { pause--; placeTimer = setTimeout(tick, 100); return; }
+    const word = PLACES[i % PLACES.length];
+    n += del ? -1 : 1;
+    input.placeholder = n > 0 ? 'e.g. ' + word.slice(0, n) : base;
+    if (!del && n >= word.length) { del = true; pause = 14; }
+    else if (del && n <= 0) { del = false; i++; pause = 10; }
+    placeTimer = setTimeout(tick, del ? 35 : 75);
+  };
+  placeTimer = setTimeout(tick, 1200);
+}
 async function findLeads(more){
   if (leadRun) return;
   const loc = ($('leadLoc') && $('leadLoc').value.trim()) || '';
   const segIndex = selected, sg = current.segments[segIndex];
-  if (!loc) { sg.leadsError = leadsError('no_location'); renderLeads(); $('leadLoc').focus(); return; }
+  if (!loc) { nudgeLoc(); return; }
   if (!session) { setPending('leads', loc); openAuth('up', 'Create a free account to see these leads. You get 500 free leads.'); return; }
   current.loc = loc;
   // "Find more" keeps what's on screen and adds new ones; the server skips every lead you already have.
