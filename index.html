@@ -247,6 +247,9 @@ body.focusing .focus-veil{opacity:1;pointer-events:auto}
 /* pages (profile, billing) */
 .page{padding:40px 0 80px}
 .page-wrap{max-width:760px}
+.page-wrap.leads-page{max-width:1100px}
+.leads-page .leads-tools{margin:18px 0 14px}
+#allLeadsFilter{flex:1 1 260px;height:34px;padding:4px 12px;font:inherit;font-size:.88rem;border:1px solid var(--line);border-radius:10px;background:var(--card);color:var(--ink)}
 .page h2{font-size:clamp(2rem,4vw,2.6rem);margin:14px 0 22px}
 .page-sub{font-size:1.1rem;margin:40px 0 0}
 .page-card{display:grid;gap:20px;padding:24px 0 0;border-top:1px solid var(--line)}
@@ -303,9 +306,14 @@ body[data-page] .hero{display:none}
 .history-item:hover{border-left-color:var(--accent);background:var(--card)}
 .history-item small{color:var(--muted);font-weight:400;font-size:.72rem;white-space:nowrap}
 .history-item span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-/* Wide screens: past searches sit on the right as a small feed. */
-@media (min-width:1480px){
+.my-leads-link{display:grid;gap:1px;margin-bottom:18px;padding:10px 12px;border:1px solid var(--line);border-radius:14px;background:var(--card);color:var(--ink);text-decoration:none}
+.my-leads-link:hover{border-color:var(--accent)}
+.my-leads-link b{font-weight:600;font-size:.88rem}
+.my-leads-link small{color:var(--muted);font-size:.74rem}
+/* Wider screens: past searches and My leads sit on the right; the boxes in the middle make room. */
+@media (min-width:1100px){
   .history{position:fixed;top:120px;right:24px;width:200px;max-height:calc(100vh - 160px);overflow-y:auto;margin:0;z-index:5}
+  body.app.has-rail .demo, body.app.has-rail .action-card{max-width:min(980px, calc(100vw - 520px))}
 }
 
 /* signed-in app view */
@@ -478,8 +486,11 @@ footer{margin-top:auto;padding:28px 0 24px;color:var(--muted);font-size:.88rem}
       <div class="marquee ind-marquee" aria-label="Industries we find customers for"><div class="track ind-track" id="indTrack"></div></div>
     </div>
     <div class="history app-only" id="history" hidden>
-      <div class="history-title">Your past searches</div>
-      <div class="history-list" id="historyList"></div>
+      <a class="my-leads-link" href="#leads" id="myLeadsLink"><b>📇 My leads</b><small id="myLeadsCount">Every lead you’ve found</small></a>
+      <div id="pastSearches">
+        <div class="history-title">Your past searches</div>
+        <div class="history-list" id="historyList"></div>
+      </div>
     </div>
 
     <div class="action-card" id="actionCard" hidden></div>
@@ -513,6 +524,8 @@ footer{margin-top:auto;padding:28px 0 24px;color:var(--muted);font-size:.88rem}
         <div class="leads-tools" id="leadsTools" hidden>
           <button class="btn btn-ghost" type="button" id="copyLeads">Copy all</button>
           <button class="btn btn-ghost" type="button" id="copyEmails">Copy emails</button>
+          <button class="btn btn-accent" type="button" id="moreLeads">Find more leads</button>
+          <a href="#leads" class="muted" style="font-size:.82rem">All my leads →</a>
           <span class="muted" id="copyNote"></span>
         </div>
         <div class="leads-scroll"><table class="ltbl" id="leadsTable"><thead><tr><th>Business</th><th>Email</th><th>Phone</th></tr></thead><tbody></tbody></table></div>
@@ -795,6 +808,22 @@ footer{margin-top:auto;padding:28px 0 24px;color:var(--muted);font-size:.88rem}
   </div>
 </section>
 
+<section class="page" id="leadsPage" hidden>
+  <div class="wrap page-wrap leads-page">
+    <button class="back" type="button" data-back>← Back</button>
+    <h2>My leads</h2>
+    <p class="muted" id="allLeadsNote">Every lead you’ve found, newest first. New searches never repeat these.</p>
+    <div class="leads-tools">
+      <input id="allLeadsFilter" type="search" placeholder="Filter by name, email, city, customer type…" aria-label="Filter leads">
+      <button class="btn btn-ghost" type="button" id="allCopy">Copy all</button>
+      <button class="btn btn-ghost" type="button" id="allCopyEmails">Copy emails</button>
+      <button class="btn btn-ghost" type="button" id="allCsv">Download CSV</button>
+      <span class="muted" id="allNote"></span>
+    </div>
+    <div class="leads-scroll"><table class="ltbl" id="allLeadsTable"><thead><tr><th>Business</th><th>Email</th><th>Phone</th><th>Search</th><th>Found</th></tr></thead><tbody></tbody></table></div>
+  </div>
+</section>
+
 <section class="page" id="billingPage" hidden>
   <div class="wrap page-wrap">
     <button class="back" type="button" data-back>← Back</button>
@@ -951,10 +980,12 @@ function renderAccount(){
 // ---- pages: #profile and #billing replace the main view, with a back button ----
 function route(){
   const h = location.hash.replace('#', '');
-  const page = document.body.classList.contains('app') && (h === 'profile' || h === 'billing') ? h : '';
+  const page = document.body.classList.contains('app') && (h === 'profile' || h === 'billing' || h === 'leads') ? h : '';
   if (page) document.body.dataset.page = page; else delete document.body.dataset.page;
   document.getElementById('profilePage').hidden = page !== 'profile';
   document.getElementById('billingPage').hidden = page !== 'billing';
+  document.getElementById('leadsPage').hidden = page !== 'leads';
+  if (page === 'leads') loadAllLeads();
   if (page === 'profile') fillProfile();
   if (page) { window.scrollTo(0, 0); loadAccount(); }
 }
@@ -970,14 +1001,14 @@ document.addEventListener('click', e => {
   const a = e.target.closest && e.target.closest('a[href^="#"]');
   if (!a || e.defaultPrevented || e.metaKey || e.ctrlKey || e.shiftKey) return;
   const id = a.getAttribute('href').slice(1);
-  if (id === 'profile' || id === 'billing') return;
+  if (id === 'profile' || id === 'billing' || id === 'leads') return;
   e.preventDefault();
   if (document.body.dataset.page) clearHash();
   const el = id && document.getElementById(id);
   if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' }); else window.scrollTo({ top: 0, behavior: 'smooth' });
 });
 // (a bare "#" reads as an empty location.hash, so look at the whole address)
-if (location.href.endsWith('#') || (/^#[a-z]+$/.test(location.hash) && !/^#(profile|billing)$/.test(location.hash))) {
+if (location.href.endsWith('#') || (/^#[a-z]+$/.test(location.hash) && !/^#(profile|billing|leads)$/.test(location.hash))) {
   const el = document.getElementById(location.hash.slice(1));
   history.replaceState(null, '', location.pathname + location.search);
   if (el) requestAnimationFrame(() => el.scrollIntoView({ block: 'start' }));
@@ -1092,6 +1123,7 @@ document.getElementById('manageBilling').addEventListener('click', async e => {
 function isActive(){ try { return sessionStorage.getItem('so_active') === '1'; } catch { return false; } }
 function setActive(on){ try { on ? sessionStorage.setItem('so_active', '1') : sessionStorage.removeItem('so_active'); } catch {} }
 function runningNow(){ const b = document.getElementById('runBtn'); return !!(b && b.disabled); }
+const allLeads = { list: null, loading: false }; // My leads (filled from the server)
 function historyKey(){ return session ? 'so_hist_' + session.user.id : null; }
 function loadHistory(){ const k = historyKey(); if (!k) return []; try { return JSON.parse(localStorage.getItem(k) || '[]'); } catch { return []; } }
 function saveToHistory(analysis){
@@ -1103,7 +1135,10 @@ function saveToHistory(analysis){
 function renderHistory(){
   const box = document.getElementById('history'), list = document.getElementById('historyList');
   const items = session ? loadHistory() : [];
-  box.hidden = !items.length;
+  box.hidden = !session;
+  document.body.classList.toggle('has-rail', !!session);
+  $('pastSearches').hidden = !items.length;
+  if (session && allLeads.list === null) loadAllLeads(true);
   list.replaceChildren();
   items.forEach(h => {
     const b = document.createElement('button'); b.type = 'button'; b.className = 'history-item';
@@ -1541,39 +1576,46 @@ async function leadsApi(method, pathOrBody){
   const headers = { 'Content-Type': 'application/json' };
   if (session) headers.Authorization = 'Bearer ' + session.access_token;
   const r = method === 'GET'
-    ? await fetch('/api/leads?ticket=' + encodeURIComponent(pathOrBody), { headers })
+    ? await fetch('/api/leads?' + new URLSearchParams(typeof pathOrBody === 'string' ? { ticket: pathOrBody } : pathOrBody), { headers })
     : await fetch('/api/leads', { method: 'POST', headers, body: JSON.stringify(pathOrBody) });
   const data = await r.json().catch(() => ({}));
   if (!r.ok) throw { code: data.error || 'error' };
   return data;
 }
-async function findLeads(){
+async function findLeads(more){
   if (leadRun) return;
   const loc = ($('leadLoc') && $('leadLoc').value.trim()) || '';
   const segIndex = selected, sg = current.segments[segIndex];
   if (!loc) { sg.leadsError = leadsError('no_location'); renderLeads(); $('leadLoc').focus(); return; }
   if (!session) { setPending('leads', loc); openAuth('up', 'Create a free account to see these leads. You get 500 free leads.'); return; }
   current.loc = loc;
-  sg.leads = []; sg.leadsLoc = loc; sg.leadsError = '';
+  // "Find more" keeps what's on screen and adds new ones; the server skips every lead you already have.
+  const before = more === true && sg.leadsLoc === loc && Array.isArray(sg.leads) ? sg.leads : [];
+  sg.leads = before; sg.leadsLoc = loc; sg.leadsError = ''; sg.leadsSkipped = 0; sg.leadsNew = null;
   holdStart();
-  leadRun = { segIndex, msg: 'Finding 💸 real ' + sg.name.toLowerCase() + ' in ' + loc + '. This can take up to a minute or two.' };
+  leadRun = { segIndex, msg: (before.length ? 'Finding more 💸 ' : 'Finding 💸 real ') + sg.name.toLowerCase() + ' in ' + loc + ', skipping the ones you already have. This can take up to a minute or two.' };
   renderAnalysis(); focusOn($('leadsBox'));
   try {
-    const first = await leadsApi('POST', { query: sg.search || sg.name, location: loc, osm: sg.osm || [] });
+    const q = sg.search || sg.name;
+    const first = await leadsApi('POST', { query: q, location: loc, osm: sg.osm || [], site: current.site || '' });
     if (first.account) { acct = { ...first.account, loaded: true, loadedFor: acct.loadedFor }; renderAccount(); }
     const ticket = first.ticket;
     sg.leadsSource = ticket ? 'maps' : (first.source || 'maps');
-    if (!ticket) sg.leads = first.leads || [];
+    let found = ticket ? [] : (first.leads || []), skipped = first.skipped || 0;
+    sg.leads = before.concat(found);
     const started = Date.now();
     while (ticket) {
       await new Promise(r => setTimeout(r, 6000));
-      const res = await leadsApi('GET', ticket);
-      sg.leads = res.leads;
+      const res = await leadsApi('GET', { ticket, q, loc, site: current.site || '' });
+      found = res.leads || []; skipped = res.skipped || 0;
+      sg.leads = before.concat(found);
       if (res.account) { acct = { ...res.account, loaded: true, loadedFor: acct.loadedFor }; renderAccount(); }
       if (selected === segIndex) renderLeads();
       if (['SUCCEEDED', 'FAILED', 'ABORTED', 'TIMED-OUT'].includes(res.status) || Date.now() - started > 6 * 60000) break;
     }
+    sg.leadsNew = found.length; sg.leadsSkipped = skipped;
     store.set('analysis', current); saveToHistory(current);
+    allLeads.list = null; loadAllLeads(true);
   } catch (e) {
     sg.leadsError = leadsError(e && e.code);
   } finally {
@@ -1604,6 +1646,82 @@ async function copyLeads(kind){
 }
 $('copyLeads').addEventListener('click', () => copyLeads('all'));
 $('copyEmails').addEventListener('click', () => copyLeads('emails'));
+$('moreLeads').addEventListener('click', () => findLeads(true));
+
+// ---- My leads: every lead this account has found (saved on our server) ----
+async function loadAllLeads(quiet){
+  if (!session || allLeads.loading) return;
+  allLeads.loading = true;
+  if (!quiet) $('allNote').textContent = 'Loading…';
+  try {
+    const r = await fetch('/api/leads?history=1', { headers: { Authorization: 'Bearer ' + session.access_token } });
+    const d = await r.json().catch(() => ({}));
+    if (r.ok) allLeads.list = Array.isArray(d.leads) ? d.leads : [];
+    else if (allLeads.list === null) allLeads.list = [];
+  } catch { if (allLeads.list === null) allLeads.list = []; }
+  allLeads.loading = false;
+  if (!quiet) $('allNote').textContent = '';
+  renderAllLeads();
+}
+function filteredLeads(){
+  const f = ($('allLeadsFilter').value || '').toLowerCase().trim();
+  const list = allLeads.list || [];
+  return f ? list.filter(l => [l.name, l.email, l.phone, l.website, l.address, l.q, l.loc, l.site].join(' ').toLowerCase().includes(f)) : list;
+}
+function renderAllLeads(){
+  const list = allLeads.list || [];
+  const emails = list.filter(l => l.email).length;
+  $('myLeadsCount').textContent = list.length ? list.length + ' leads · ' + emails + ' with email' : 'Every lead you find is saved here';
+  if ($('leadsPage').hidden) return;
+  const rows = filteredLeads();
+  $('allLeadsNote').textContent = list.length
+    ? list.length + ' leads, ' + emails + ' with email. Newest first. New searches never repeat these.'
+    : 'No leads yet. Search for a customer type and press Find real leads: every lead you find is saved here.';
+  const tb = document.querySelector('#allLeadsTable tbody');
+  tb.replaceChildren();
+  rows.slice(0, 1000).forEach(l => {
+    const tr = document.createElement('tr');
+    const a = document.createElement('td');
+    if (l.website) { const link = document.createElement('a'); link.href = l.website; link.target = '_blank'; link.rel = 'noopener'; link.textContent = l.name; a.append(link); }
+    else a.textContent = l.name;
+    if (l.address) { const sm = document.createElement('small'); sm.textContent = l.address; a.append(sm); }
+    const e = document.createElement('td'); e.textContent = l.email || '—'; if (!l.email) e.className = 'none';
+    const p = document.createElement('td'); p.textContent = l.phone || '—'; if (!l.phone) p.className = 'none';
+    const s = document.createElement('td'); s.textContent = [l.q, l.loc].filter(Boolean).join(' · ');
+    if (l.site) { const sm = document.createElement('small'); sm.textContent = 'for ' + l.site; s.append(sm); }
+    const d = document.createElement('td'); d.className = 'none'; d.style.whiteSpace = 'nowrap';
+    d.textContent = l.at ? new Date(l.at).toLocaleDateString(undefined, { day: 'numeric', month: 'short' }) : '';
+    tr.append(a, e, p, s, d); tb.append(tr);
+  });
+}
+async function copyText(text, msg){
+  try { await navigator.clipboard.writeText(text); $('allNote').textContent = msg; }
+  catch {
+    const ta = document.createElement('textarea'); ta.value = text; document.body.append(ta); ta.select();
+    const ok = document.execCommand('copy'); ta.remove();
+    $('allNote').textContent = ok ? msg : 'Your browser blocked copying. Try again.';
+  }
+}
+const leadCells = l => [l.name, l.email, l.phone, l.website, l.address, l.q, l.loc, l.site, l.at ? new Date(l.at).toISOString().slice(0, 10) : ''];
+const LEAD_HEAD = ['Business', 'Email', 'Phone', 'Website', 'Address', 'Customer type', 'Location', 'For site', 'Found'];
+$('allLeadsFilter').addEventListener('input', renderAllLeads);
+$('allCopy').addEventListener('click', () => {
+  const rows = filteredLeads(), clean = v => String(v || '').replace(/[\t\r\n]+/g, ' ').trim();
+  copyText([LEAD_HEAD.join('\t'), ...rows.map(l => leadCells(l).map(clean).join('\t'))].join('\n'), 'Copied ' + rows.length + ' leads. Paste into Google Sheets or Excel.');
+});
+$('allCopyEmails').addEventListener('click', () => {
+  const list = [...new Set(filteredLeads().map(l => l.email).filter(Boolean))];
+  copyText(list.join(', '), 'Copied ' + list.length + ' emails.');
+});
+$('allCsv').addEventListener('click', () => {
+  const q = v => '"' + String(v || '').replace(/"/g, '""') + '"';
+  const csv = [LEAD_HEAD.map(q).join(','), ...filteredLeads().map(l => leadCells(l).map(q).join(','))].join('\r\n');
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8' }));
+  a.download = 'my-leads-' + new Date().toISOString().slice(0, 10) + '.csv';
+  document.body.append(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+});
 
 $('holdToggle').addEventListener('click', () => setHoldMusic(!hold.on));
 
@@ -1615,10 +1733,11 @@ function renderLeads(){
   box.hidden = $('demo').hidden || !(has || running || sg.leadsError);
   if (running) { st.className = 'status'; st.textContent = leadRun.msg; }
   else if (sg.leadsError) { st.className = 'status err'; st.textContent = sg.leadsError; }
-  else if (has && sg.leads.length) { st.className = 'status ok'; st.textContent = 'Every lead with an email is added to your email below.'; }
+  else if (has && sg.leadsNew === 0) { st.className = 'status err'; st.textContent = 'No new leads left for this search' + (sg.leadsSkipped ? ' (we skipped ' + sg.leadsSkipped + ' you already have)' : '') + '. Try a nearby city or another customer type.'; }
+  else if (has && sg.leads.length) { st.className = 'status ok'; st.textContent = (sg.leadsNew ? sg.leadsNew + ' new leads. ' : '') + (sg.leadsSkipped ? 'Skipped ' + sg.leadsSkipped + ' you already have. ' : '') + 'Every lead with an email is added to your email below.'; }
   else if (has) { st.className = 'status err'; st.textContent = 'No leads found there. Try a bigger city or a whole country.'; }
   else st.textContent = '';
-  $('leadsTools').hidden = !(has && sg.leads.length) || running;
+  $('leadsTools').hidden = !(has && (sg.leads.length || sg.leadsNew === 0)) || running;
   $('leadsCredit').hidden = !(has && list0(sg).length && sg.leadsSource === 'free');
   $('leadsTitle').textContent = 'Real leads · ' + sg.name + (sg.leadsLoc ? ' in ' + sg.leadsLoc : '');
   const list = has ? sg.leads : [];

@@ -57,7 +57,7 @@ async function findEmail(site) {
   return "";
 }
 
-export async function freeLeads({ tags, term, location, max = 20 }) {
+export async function freeLeads({ tags, term, location, max = 20, skip = () => false }) {
   const place = await geocode(location);
   if (!place) throw { code: "no_place" };
   const sels = selectors(tags, term);
@@ -74,7 +74,7 @@ export async function freeLeads({ tags, term, location, max = 20 }) {
   if (!r.ok) throw { code: "free_source_busy" };
   const data = await r.json().catch(() => ({}));
   const seen = new Set();
-  let leads = (data.elements || []).map(toLead).filter(l => l.name && !seen.has(l.name.toLowerCase()) && seen.add(l.name.toLowerCase()));
+  let leads = (data.elements || []).map(toLead).filter(l => l.name && !skip(l) && !seen.has(l.name.toLowerCase()) && seen.add(l.name.toLowerCase()));
   // Prefer places we can actually reach: email first, then website.
   leads.sort((a, b) => (b.email ? 2 : b.website ? 1 : 0) - (a.email ? 2 : a.website ? 1 : 0));
   leads = leads.slice(0, max);
