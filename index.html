@@ -818,6 +818,11 @@ footer{margin-top:auto;padding:28px 0 24px;color:var(--muted);font-size:.88rem}
       <div class="field"><label for="newPass">New password</label>
         <div class="inline"><input id="newPass" type="password" minlength="6" autocomplete="new-password"><button class="btn btn-ghost" type="button" id="savePass">Change</button></div>
       </div>
+      <div class="field" id="groupsField" hidden><label for="fbGroups">Facebook groups for your deep scan <small class="muted">(only you see this)</small></label>
+        <textarea id="fbGroups" rows="4" placeholder="https://www.facebook.com/groups/... (one per line, up to 15)" style="max-width:520px;width:100%;font:inherit;font-size:.86rem;padding:8px 12px;border:1px solid var(--line);border-radius:10px;background:var(--card);color:var(--ink)"></textarea>
+        <div><button class="btn btn-ghost" type="button" id="saveGroups" style="height:34px;padding:0 14px;font-size:.84rem">Save groups</button></div>
+        <small class="muted" style="font-size:.8rem">Only <b>public</b> groups can be read (the group page says “Public group”). Hot leads then read their newest posts too.</small>
+      </div>
       <p class="status" id="profileStatus"></p>
       <button class="btn btn-ghost" type="button" id="signOutBtn">Sign out</button>
     </div>
@@ -937,8 +942,25 @@ function fillProfile(){
   document.getElementById('profileGmail').textContent = acct.gmail || 'Not connected';
   document.getElementById('profilePlan').textContent = acct.paid ? planName(acct.plan) : 'Free trial';
   document.getElementById('profileCredits').textContent = num(leadsLeft());
+  document.getElementById('groupsField').hidden = !acct.owner;
+  if (acct.owner && document.activeElement !== document.getElementById('fbGroups')) document.getElementById('fbGroups').value = (acct.fb_groups || []).join('\n');
 }
 function closeProfile(){ if (location.hash === '#profile') clearHash(); }
+document.getElementById('saveGroups').addEventListener('click', async () => {
+  const st = document.getElementById('profileStatus');
+  const raw = document.getElementById('fbGroups').value;
+  const typed = raw.split(/[\s,]+/).filter(Boolean).length;
+  st.className = 'status'; st.textContent = 'Saving…';
+  try {
+    const r = await fetch('/api/hot?groups=1', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + session.access_token }, body: JSON.stringify({ groups: raw }) });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) throw 0;
+    acct.fb_groups = d.groups; document.getElementById('fbGroups').value = d.groups.join('\n');
+    const skipped = typed - d.groups.length;
+    st.className = 'status ok';
+    st.textContent = d.groups.length + (d.groups.length === 1 ? ' group' : ' groups') + ' saved.' + (skipped > 0 ? ' ' + skipped + ' didn’t look like facebook.com/groups/… links and were left out.' : '');
+  } catch { st.className = 'status err'; st.textContent = 'Couldn’t save the groups. Try again.'; }
+});
 
 // ---- account (credits) ----
 let acct = { credits_left: 50, credits_used: 0, start_credits: 50, leads_found: 0, emails_sent: 0, lead_price: 0.1, plan: 'trial', gmail: '', tracked: false };
@@ -1843,7 +1865,7 @@ async function findHot(){
   renderAnalysis(); focusOn($('hotBox'));
   try {
     const { ticket, deep } = await hotApi('POST', '/api/hot', { summary: current.summary, segment: sg.name, location: loc });
-    if (deep) { hotRun.msg = 'Deep scan: Reddit, X, Facebook, Instagram, Nextdoor, Craigslist, Quora and TikTok' + (loc ? ' for ' + loc : '') + '. Takes 2–5 minutes.'; if (selected === segIndex) renderHot(); }
+    if (deep) { hotRun.msg = 'Deep scan: ' + ((acct.fb_groups || []).length ? 'your ' + acct.fb_groups.length + ' Facebook groups, ' : '') + 'Reddit, X, Facebook, Instagram, Nextdoor, Craigslist, Quora and TikTok' + (loc ? ', only people in ' + loc : '') + '. Takes 2–5 minutes.'; if (selected === segIndex) renderHot(); }
     const started = Date.now();
     let res = { done: false, posts: [] };
     while (!res.done && Date.now() - started < (deep ? 7 : 4) * 60000) {
@@ -1856,7 +1878,7 @@ async function findHot(){
     if (res.posts.length) {
       hotRun.msg = 'Picking the people who actually want to buy…';
       if (selected === segIndex) renderHot();
-      const sc = await hotApi('POST', '/api/hot-score', { summary: current.summary, sender: senderName(), posts: res.posts.map(p => ({ text: p.text })) });
+      const sc = await hotApi('POST', '/api/hot-score', { summary: current.summary, sender: senderName(), location: loc, posts: res.posts.map(p => ({ text: p.text, where: p.where ? (p.source === 'Reddit' ? 'r/' : '') + p.where : '' })) });
       sg.hot.matches = sc.matches;
     }
     store.set('analysis', current); saveToHistory(current);
@@ -1932,7 +1954,7 @@ function hotEmptyText(h){
   const failed = ['Reddit', 'X'].filter(k => src[k] && !ok(src[k]));
   const read = (h.posts || []).length;
   const where = h.loc ? ' in ' + h.loc : '';
-  if (read && src.Web) return 'We read ' + read + ' recent posts on Reddit, X, Facebook, Instagram, Nextdoor, Craigslist, Quora and TikTok' + where + ', but nobody was asking to buy this yet. Try another customer type or a wider place.';
+  if (read && src.Web) return 'We read ' + read + ' recent posts' + (src.Groups ? ' (' + src.Groups.count + ' from your Facebook groups)' : '') + ' on Reddit, X, Facebook, Instagram, Nextdoor, Craigslist, Quora and TikTok, but none were from someone' + where + ' asking to buy this. Try another customer type, or add more local Facebook groups in your profile.';
   if (read) return 'We read ' + read + ' recent posts on Reddit and X' + where + ', but nobody was asking to buy this yet.'
     + (failed.length ? ' (' + failed.join(' and ') + ' didn’t answer this time.)' : '') + ' Try another customer type, or turn on the weekly email to catch them when they post.';
   if (failed.length === 2) return 'We couldn’t reach Reddit or X right now. Try again in a few minutes.';

@@ -87,6 +87,8 @@ export function account(user) {
     hot_watches: (Array.isArray(m.hot_watches) ? m.hot_watches : (m.hot_watch ? [m.hot_watch] : [])).filter(w => w && w.on)
       .map(w => ({ segment: w.segment, location: w.location, last: w.last ? { at: w.last.at, count: w.last.count, delivered: w.last.delivered } : null })),
     hot_watch_limit: watchLimitFor(user),
+    owner: isOwner(user),
+    fb_groups: isOwner(user) ? ((user.app_metadata || {}).fb_groups || []) : undefined,
     tracked: tracking(),
   };
 }

@@ -5,6 +5,7 @@ import { apify, startRun } from "./_apify.js";
 const REDDIT = "trudax~reddit-scraper-lite";
 const X = "apidojo~tweet-scraper";
 const GOOGLE = "apify~google-search-scraper";
+const FB_GROUPS = "apify~facebook-groups-scraper";
 // Owner-only deep scan also reads public posts on these sites through Google search results
 // (no logging in to any of them).
 const SITES = ["facebook.com", "instagram.com", "nextdoor.com", "craigslist.org", "quora.com", "tiktok.com"];
@@ -32,6 +33,13 @@ export function fromX(t) {
 }
 
 
+export function fromFacebookGroup(p) {
+  const text = String(p.text || p.message || "").trim();
+  const url = p.url || p.facebookUrl || "";
+  if (!text || !url) return null;
+  return { source: "Facebook", text: text.slice(0, 600), url, author: (p.user && p.user.name) || "", where: p.groupTitle || "", at: p.time || "" };
+}
+
 export function fromGoogle(page) {
   return (page.organicResults || []).map(r => {
     let host = "";
@@ -50,17 +58,22 @@ Business: ${summary}
 Customer type to focus on: ${segment || "any"}
 Place: ${location || "anywhere"}
 
-Write short search queries that would find posts where someone is actively looking to buy, rent, hire or book this kind of product or service: "looking for", "need", "ISO", "any recommendations", "moving to", "where can I find", or complaining about their current provider. Use the words and the language people in that place actually post in.
-- language: ISO 639-1 code of that language.
-- reddit: ${deep ? 6 : 3} plain search phrases (3-6 words each). Include the place when it helps.
-- x: ${deep ? 4 : 2} X/Twitter search queries (3-6 words each, you may use OR), add " -filter:retweets" at the end.
+Write short search queries that would find posts where someone is actively looking to buy, rent, hire or book this kind of product or service: "looking for", "need", "ISO", "any recommendations", "moving to", "where can I find", or complaining about their current provider. Use the words and the language people in that place actually post in (for Medellín, Spanish like "busco apartamento", "arriendo", plus English from expats).
+${location ? `Every query MUST contain the place name ("${location}") or one of its neighborhoods, so results come from there and not from other cities.` : ""}
+- language: ISO 639-1 code of the main local language.
+- reddit: ${deep ? 6 : 3} plain search phrases (3-6 words each), each with the place.
+- x: ${deep ? 4 : 2} X/Twitter search queries (3-6 words each, you may use OR), each with the place, add " -filter:retweets" at the end.
 - web: ${deep ? 4 : 0} Google phrases (3-7 words, with the place) that match how people word these requests in Facebook groups, Instagram, Nextdoor or Craigslist "wanted" posts. Use quotes around the key phrase.`, QUERIES, "low");
 }
 
 // Starts the searches; returns [redditRun, redditData, xRun, xData] plus, for a deep scan,
 // [googleRun, googleData] ("-" when one failed). Deep scans (owner only) read about 4x more.
-export async function startHotRuns(q, time = "month", deep = false) {
+export async function startHotRuns(q, time = "month", deep = false, groups = []) {
   const site = "(" + SITES.map(s => "site:" + s).join(" OR ") + ")";
+  const fb = deep && groups.length
+    ? startRun(FB_GROUPS, { startUrls: groups.slice(0, 15).map(url => ({ url })), resultsLimit: Math.min(400, groups.length * 40),
+        viewOption: "CHRONOLOGICAL", onlyPostsNewerThan: time === "week" ? "8 days" : "21 days" })
+    : Promise.reject(new Error("off"));
   const runs = await Promise.allSettled([
     startRun(REDDIT, { searches: q.reddit.slice(0, deep ? 6 : 3), searchPosts: true, searchComments: false, searchCommunities: false, searchUsers: false,
       sort: "new", time, maxItems: deep ? 150 : 40, skipComments: true, includeNSFW: false }),
@@ -69,12 +82,13 @@ export async function startHotRuns(q, time = "month", deep = false) {
       ? startRun(GOOGLE, { queries: q.web.slice(0, 4).map(w => w + " " + site).join("\n"), maxPagesPerQuery: 2,
           quickDateRange: time === "week" ? "w1" : "m1", saveHtmlToKeyValueStore: false })
       : Promise.reject(new Error("off")),
+    fb,
   ]);
   const ids = r => r.status === "fulfilled" ? [r.value.runId, r.value.datasetId] : ["-", "-"];
-  return [...ids(runs[0]), ...ids(runs[1]), ...(deep ? ids(runs[2]) : [])];
+  return [...ids(runs[0]), ...ids(runs[1]), ...(deep ? [...ids(runs[2]), ...ids(runs[3])] : [])];
 }
 
-export async function collectRuns([rRun, rData, xRun, xData, gRun = "-", gData = "-"]) {
+export async function collectRuns([rRun, rData, xRun, xData, gRun = "-", gData = "-", fRun = "-", fData = "-"]) {
   const one = async (runId, dataId, map, limit = 200) => {
     if (runId === "-") return { done: true, posts: [], status: "NOT_STARTED" };
     try {
@@ -83,13 +97,14 @@ export async function collectRuns([rRun, rData, xRun, xData, gRun = "-", gData =
       return { done: ["SUCCEEDED", "FAILED", "ABORTED", "TIMED-OUT"].includes(status), status, posts: (Array.isArray(items) ? items : []).flatMap(i => map(i) || []).filter(Boolean) };
     } catch { return { done: true, posts: [], status: "ERROR" }; }
   };
-  const [a, b, g] = await Promise.all([one(rRun, rData, fromReddit), one(xRun, xData, fromX), one(gRun, gData, fromGoogle, 20)]);
+  const [a, b, g, f] = await Promise.all([one(rRun, rData, fromReddit), one(xRun, xData, fromX), one(gRun, gData, fromGoogle, 20), one(fRun, fData, fromFacebookGroup, 400)]);
   const seen = new Set();
   const sources = { Reddit: { status: a.status, count: a.posts.length }, X: { status: b.status, count: b.posts.length } };
   if (gRun !== "-") sources.Web = { status: g.status, count: g.posts.length };
+  if (fRun !== "-") sources.Groups = { status: f.status, count: f.posts.length };
   return {
-    done: a.done && b.done && g.done,
-    posts: [...g.posts, ...a.posts, ...b.posts].filter(p => !seen.has(p.url) && seen.add(p.url)),
+    done: a.done && b.done && g.done && f.done,
+    posts: [...f.posts, ...g.posts, ...a.posts, ...b.posts].filter(p => !seen.has(p.url) && seen.add(p.url)),
     // What each source did, so the page can say "read 40 posts, none were buyers" vs "couldn't reach X".
     sources,
   };

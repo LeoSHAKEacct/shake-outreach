@@ -12,6 +12,7 @@ const BUDGET_MS = 50000;   // stay under the 60s function limit
 const MAX_ITEMS = 10;
 
 const eligible = user => isOwner(user) || isPaid(user) || (hotDaysLeft(user) || 0) > 0;
+const postLine = p => (p.where ? "[" + (p.source === "Reddit" ? "r/" : "") + p.where + "] " : "") + p.text;
 const hash = url => crypto.createHash("sha1").update(url).digest("base64url").slice(0, 12);
 
 // Each user can have several weekly emails (one per customer type + place), by plan.
@@ -96,7 +97,7 @@ export async function digestStart(req, res) {
       if (w.pending) { next.push(w); continue; }
       const deep = isOwner(u);
       const q = (w.q && (!deep || w.q.web)) ? w.q : await writeQueries(w.summary, w.segment, w.location, deep);
-      const parts = await startHotRuns(q, "week", deep);
+      const parts = await startHotRuns(q, "week", deep, deep ? ((u.app_metadata || {}).fb_groups || []) : []);
       if (parts.every((p, i) => i % 2 || p === "-")) { next.push({ ...w, q }); continue; }
       next.push({ ...w, q, pending: { parts, at: Date.now() } }); count++;
     }
@@ -123,7 +124,7 @@ export async function digestSend(req, res) {
       if (fresh.length) {
         const take = fresh.slice(0, isOwner(u) ? 240 : 80), batches = [];
         for (let i = 0; i < take.length; i += 80) batches.push(i);
-        const matches = (await Promise.all(batches.map(i => scorePosts(w.summary, w.sender, take.slice(i, i + 80).map(p => p.text))
+        const matches = (await Promise.all(batches.map(i => scorePosts(w.summary, w.sender, take.slice(i, i + 80).map(postLine), w.location)
           .then(ms => ms.map(m => ({ ...m, i: m.i + i }))).catch(() => [])))).flat().sort((a, b) => b.score - a.score);
         items = matches.slice(0, isOwner(u) ? 25 : MAX_ITEMS).map(m => ({ ...fresh[m.i], score: m.score, why: m.why, reply: m.reply }));
       }

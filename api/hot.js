@@ -1,6 +1,6 @@
 import { scoreHot } from "./_hot_score.js";
 import { requireUser, rateLimited, send, readBody, clip } from "./_claude.js";
-import { hotDaysLeft, isOwner } from "./_account.js";
+import { hotDaysLeft, isOwner, updateAppMeta } from "./_account.js";
 import { makeTicket, readTicket } from "./_apify.js";
 import { writeQueries, startHotRuns, collectRuns } from "./_hot_core.js";
 import { digestStart, digestSend, setWatch } from "./_digest.js";
@@ -18,6 +18,16 @@ export default async function handler(req, res) {
   const user = await requireUser(req);
   if (!user || !user.id) return send(res, 401, { error: "auth_required" });
   if (req.query && req.query.watch) return setWatch(req, res, user);
+  // Owner only: the public Facebook groups the deep scan reads.
+  if (req.query && req.query.groups) {
+    if (!isOwner(user) || req.method !== "POST") return send(res, 403, { error: "owner_only" });
+    const list = String(readBody(req).groups || "").split(/[\s,]+/)
+      .map(u => u.trim().split(/[?#]/)[0]).filter(u => /^https:\/\/(www\.|m\.)?facebook\.com\/groups\/[\w.\-]+\/?$/i.test(u))
+      .map(u => u.replace(/^https:\/\/(www\.|m\.)?/i, "https://www.").replace(/\/?$/, "/"));
+    const groups = [...new Set(list)].slice(0, 15);
+    await updateAppMeta(user, { fb_groups: groups });
+    return send(res, 200, { groups });
+  }
 
   if (req.method === "POST") {
     const deep = isOwner(user);   // the owner's account gets the deep scan (more posts, more sites)
@@ -32,7 +42,7 @@ export default async function handler(req, res) {
     try { q = await writeQueries(summary, segment, location, deep); }
     catch (e) { return send(res, 502, { error: e.code || "upstream_error" }); }
 
-    const parts = await startHotRuns(q, "month", deep);
+    const parts = await startHotRuns(q, "month", deep, deep ? ((user.app_metadata || {}).fb_groups || []) : []);
     if (parts.every((p, i) => i % 2 || p === "-")) return send(res, 502, { error: "apify_error" });
     return send(res, 200, { ticket: makeTicket([...parts, user.id]), queries: q, deep });
   }
@@ -40,7 +50,7 @@ export default async function handler(req, res) {
   if (req.method === "GET") {
     const url = new URL(req.url, "http://x");
     const raw = url.searchParams.get("ticket");
-    const t = readTicket(raw, 5) || readTicket(raw, 7);
+    const t = readTicket(raw, 5) || readTicket(raw, 7) || readTicket(raw, 9);
     if (!t || t[t.length - 1] !== user.id) return send(res, 403, { error: "bad_ticket" });
     return send(res, 200, await collectRuns(t.slice(0, -1)));
   }
