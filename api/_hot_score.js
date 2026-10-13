@@ -1,4 +1,5 @@
 import { requireUser, askJSON, rateLimited, send, readBody, clip } from "./_claude.js";
+import { isOwner } from "./_account.js";
 
 // Claude reads the posts and keeps the ones where someone genuinely wants what the business sells.
 const SCHEMA = {
@@ -18,14 +19,20 @@ export async function scoreHot(req, res) {
   if (req.method !== "POST") return send(res, 405, { error: "method" });
   const user = await requireUser(req);
   if (!user || !user.id) return send(res, 401, { error: "auth_required" });
-  if (rateLimited(req, user, 8)) return send(res, 429, { error: "rate_limited" });
+  const deep = isOwner(user);
+  if (!deep && rateLimited(req, user, 8)) return send(res, 429, { error: "rate_limited" });
   const b = readBody(req);
   const summary = clip(b.summary, 400), sender = clip(b.sender, 60);
-  const posts = (Array.isArray(b.posts) ? b.posts : []).slice(0, 80).map(p => clip(p && p.text, 500));
+  const posts = (Array.isArray(b.posts) ? b.posts : []).slice(0, deep ? 400 : 80).map(p => clip(p && p.text, 500));
   if (!summary || !posts.length) return send(res, 200, { matches: [] });
 
   try {
-    return send(res, 200, { matches: await scorePosts(summary, sender, posts) });
+    // Deep scans are read in batches of 80 at the same time, then merged best first.
+    const batches = [];
+    for (let i = 0; i < posts.length; i += 80) batches.push(i);
+    const parts = await Promise.all(batches.map(i => scorePosts(summary, sender, posts.slice(i, i + 80))
+      .then(ms => ms.map(m => ({ ...m, i: m.i + i }))).catch(() => [])));
+    return send(res, 200, { matches: parts.flat().sort((a, b) => b.score - a.score) });
   } catch (e) {
     return send(res, 502, { error: e.code || "upstream_error" });
   }

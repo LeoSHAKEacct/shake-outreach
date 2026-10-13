@@ -1,6 +1,6 @@
 import { scoreHot } from "./_hot_score.js";
 import { requireUser, rateLimited, send, readBody, clip } from "./_claude.js";
-import { hotDaysLeft } from "./_account.js";
+import { hotDaysLeft, isOwner } from "./_account.js";
 import { makeTicket, readTicket } from "./_apify.js";
 import { writeQueries, startHotRuns, collectRuns } from "./_hot_core.js";
 import { digestStart, digestSend, setWatch } from "./_digest.js";
@@ -20,27 +20,29 @@ export default async function handler(req, res) {
   if (req.query && req.query.watch) return setWatch(req, res, user);
 
   if (req.method === "POST") {
+    const deep = isOwner(user);   // the owner's account gets the deep scan (more posts, more sites)
     const left = hotDaysLeft(user);
-    if (left !== null && left <= 0) return send(res, 402, { error: "hot_trial_over" });
-    if (rateLimited(req, user, 4)) return send(res, 429, { error: "rate_limited" });
+    if (!deep && left !== null && left <= 0) return send(res, 402, { error: "hot_trial_over" });
+    if (!deep && rateLimited(req, user, 4)) return send(res, 429, { error: "rate_limited" });
     const b = readBody(req);
     const summary = clip(b.summary, 400), segment = clip(b.segment, 120), location = clip(b.location, 80);
     if (!summary) return send(res, 400, { error: "no_query" });
 
     let q;
-    try { q = await writeQueries(summary, segment, location); }
+    try { q = await writeQueries(summary, segment, location, deep); }
     catch (e) { return send(res, 502, { error: e.code || "upstream_error" }); }
 
-    const parts = await startHotRuns(q);
-    if (parts[0] === "-" && parts[2] === "-") return send(res, 502, { error: "apify_error" });
-    return send(res, 200, { ticket: makeTicket([...parts, user.id]), queries: q });
+    const parts = await startHotRuns(q, "month", deep);
+    if (parts.every((p, i) => i % 2 || p === "-")) return send(res, 502, { error: "apify_error" });
+    return send(res, 200, { ticket: makeTicket([...parts, user.id]), queries: q, deep });
   }
 
   if (req.method === "GET") {
     const url = new URL(req.url, "http://x");
-    const t = readTicket(url.searchParams.get("ticket"), 5);
-    if (!t || t[4] !== user.id) return send(res, 403, { error: "bad_ticket" });
-    return send(res, 200, await collectRuns(t.slice(0, 4)));
+    const raw = url.searchParams.get("ticket");
+    const t = readTicket(raw, 5) || readTicket(raw, 7);
+    if (!t || t[t.length - 1] !== user.id) return send(res, 403, { error: "bad_ticket" });
+    return send(res, 200, await collectRuns(t.slice(0, -1)));
   }
 
   return send(res, 405, { error: "method" });

@@ -94,9 +94,10 @@ export async function digestStart(req, res) {
     const next = [];
     for (const w of watches) {
       if (w.pending) { next.push(w); continue; }
-      const q = w.q || await writeQueries(w.summary, w.segment, w.location);
-      const parts = await startHotRuns(q, "week");
-      if (parts[0] === "-" && parts[2] === "-") { next.push({ ...w, q }); continue; }
+      const deep = isOwner(u);
+      const q = (w.q && (!deep || w.q.web)) ? w.q : await writeQueries(w.summary, w.segment, w.location, deep);
+      const parts = await startHotRuns(q, "week", deep);
+      if (parts.every((p, i) => i % 2 || p === "-")) { next.push({ ...w, q }); continue; }
       next.push({ ...w, q, pending: { parts, at: Date.now() } }); count++;
     }
     await updateAppMeta(u, { hot_watches: next, hot_watch: null });
@@ -117,11 +118,14 @@ export async function digestSend(req, res) {
       const { done, posts } = await collectRuns(w.pending.parts);
       if (!done && Date.now() - w.pending.at < 6 * 3600 * 1000) { next.push(w); continue; } // still running
       const seen = new Set(w.seen || []);
-      const fresh = posts.filter(p => !seen.has(hash(p.url))).slice(0, 80);
+      const fresh = posts.filter(p => !seen.has(hash(p.url))).slice(0, isOwner(u) ? 240 : 80);
       let items = [];
       if (fresh.length) {
-        const matches = await scorePosts(w.summary, w.sender, fresh.map(p => p.text));
-        items = matches.slice(0, MAX_ITEMS).map(m => ({ ...fresh[m.i], score: m.score, why: m.why, reply: m.reply }));
+        const take = fresh.slice(0, isOwner(u) ? 240 : 80), batches = [];
+        for (let i = 0; i < take.length; i += 80) batches.push(i);
+        const matches = (await Promise.all(batches.map(i => scorePosts(w.summary, w.sender, take.slice(i, i + 80).map(p => p.text))
+          .then(ms => ms.map(m => ({ ...m, i: m.i + i }))).catch(() => [])))).flat().sort((a, b) => b.score - a.score);
+        items = matches.slice(0, isOwner(u) ? 25 : MAX_ITEMS).map(m => ({ ...fresh[m.i], score: m.score, why: m.why, reply: m.reply }));
       }
       let delivered = false;
       const gmail = (u.app_metadata || {}).gmail;

@@ -1842,13 +1842,14 @@ async function findHot(){
   hotRun = { segIndex, msg: 'Our agent is scanning the internet in real time for people looking for this right now' + (loc ? ' in ' + loc : '') + '. Takes 1–3 minutes.' };
   renderAnalysis(); focusOn($('hotBox'));
   try {
-    const { ticket } = await hotApi('POST', '/api/hot', { summary: current.summary, segment: sg.name, location: loc });
+    const { ticket, deep } = await hotApi('POST', '/api/hot', { summary: current.summary, segment: sg.name, location: loc });
+    if (deep) { hotRun.msg = 'Deep scan: Reddit, X, Facebook, Instagram, Nextdoor, Craigslist, Quora and TikTok' + (loc ? ' for ' + loc : '') + '. Takes 2–5 minutes.'; if (selected === segIndex) renderHot(); }
     const started = Date.now();
     let res = { done: false, posts: [] };
-    while (!res.done && Date.now() - started < 4 * 60000) {
+    while (!res.done && Date.now() - started < (deep ? 7 : 4) * 60000) {
       await new Promise(r => setTimeout(r, 8000));
       res = await hotApi('GET', '/api/hot?ticket=' + encodeURIComponent(ticket));
-      hotRun.msg = 'Reading ' + res.posts.length + ' recent posts…';
+      hotRun.msg = 'Reading ' + res.posts.length + ' recent posts' + (deep ? ' across 8 sites' : '') + '…';
       if (selected === segIndex) renderHot();
     }
     sg.hot.posts = res.posts; sg.hot.sources = res.sources || null;
@@ -1931,6 +1932,7 @@ function hotEmptyText(h){
   const failed = ['Reddit', 'X'].filter(k => src[k] && !ok(src[k]));
   const read = (h.posts || []).length;
   const where = h.loc ? ' in ' + h.loc : '';
+  if (read && src.Web) return 'We read ' + read + ' recent posts on Reddit, X, Facebook, Instagram, Nextdoor, Craigslist, Quora and TikTok' + where + ', but nobody was asking to buy this yet. Try another customer type or a wider place.';
   if (read) return 'We read ' + read + ' recent posts on Reddit and X' + where + ', but nobody was asking to buy this yet.'
     + (failed.length ? ' (' + failed.join(' and ') + ' didn’t answer this time.)' : '') + ' Try another customer type, or turn on the weekly email to catch them when they post.';
   if (failed.length === 2) return 'We couldn’t reach Reddit or X right now. Try again in a few minutes.';
