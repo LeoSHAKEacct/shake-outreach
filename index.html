@@ -818,6 +818,11 @@ footer{margin-top:auto;padding:28px 0 24px;color:var(--muted);font-size:.88rem}
       <div class="field"><label for="newPass">New password</label>
         <div class="inline"><input id="newPass" type="password" minlength="6" autocomplete="new-password"><button class="btn btn-ghost" type="button" id="savePass">Change</button></div>
       </div>
+      <div class="field" id="statsField" hidden><label>Users &amp; signups <small class="muted">(only you see this)</small></label>
+        <div class="profile-rows" id="statsRows"></div>
+        <div class="leads-scroll"><table class="ltbl" id="statsTable"><thead><tr><th>Newest signups</th><th>Joined</th><th>Last sign-in</th><th>Plan</th><th>Leads</th></tr></thead><tbody></tbody></table></div>
+        <div><button class="btn btn-ghost" type="button" id="statsRefresh" style="height:34px;padding:0 14px;font-size:.84rem">Refresh</button></div>
+      </div>
       <div class="field" id="groupsField" hidden><label for="fbGroups">Facebook groups for your deep scan <small class="muted">(only you see this)</small></label>
         <textarea id="fbGroups" rows="4" placeholder="https://www.facebook.com/groups/... (one per line, up to 15)" style="max-width:520px;width:100%;font:inherit;font-size:.86rem;padding:8px 12px;border:1px solid var(--line);border-radius:10px;background:var(--card);color:var(--ink)"></textarea>
         <div><button class="btn btn-ghost" type="button" id="saveGroups" style="height:34px;padding:0 14px;font-size:.84rem">Save groups</button></div>
@@ -943,9 +948,39 @@ function fillProfile(){
   document.getElementById('profilePlan').textContent = acct.paid ? planName(acct.plan) : 'Free trial';
   document.getElementById('profileCredits').textContent = num(leadsLeft());
   document.getElementById('groupsField').hidden = !acct.owner;
+  document.getElementById('statsField').hidden = !acct.owner;
+  if (acct.owner && !loadStats.done) loadStats();
   if (acct.owner && document.activeElement !== document.getElementById('fbGroups')) document.getElementById('fbGroups').value = (acct.fb_groups || []).join('\n');
 }
 function closeProfile(){ if (location.hash === '#profile') clearHash(); }
+// Owner only: how many people use Shake Outreach.
+async function loadStats(){
+  loadStats.done = true;
+  const rows = document.getElementById('statsRows');
+  rows.textContent = 'Loading…';
+  try {
+    const r = await fetch('/api/me?stats=1', { headers: { Authorization: 'Bearer ' + session.access_token } });
+    const d = await r.json();
+    if (!r.ok) throw 0;
+    const day = t => t ? new Date(t).toLocaleDateString(undefined, { day: 'numeric', month: 'short' }) : '—';
+    const plans = Object.entries(d.plans || {}).map(([k, v]) => v + ' ' + planName(k)).join(', ');
+    rows.replaceChildren(...[
+      ['Users', d.users],
+      ['New signups', d.signups.today + ' today · ' + d.signups.week + ' this week · ' + d.signups.month + ' in 30 days'],
+      ['Signed in this week', d.active_week],
+      ['Paying', d.paid + (plans ? ' (' + plans + ')' : '')],
+      ['Gmail connected', d.gmail_connected],
+      ['Leads found / emails sent', num(d.leads_found) + ' / ' + num(d.emails_sent)],
+    ].map(([k, v]) => { const row = document.createElement('div'); row.className = 'profile-row'; const a = document.createElement('span'); a.textContent = k; const b = document.createElement('span'); b.textContent = v; row.append(a, b); return row; }));
+    const tb = document.querySelector('#statsTable tbody'); tb.replaceChildren();
+    d.recent.forEach(u => {
+      const tr = document.createElement('tr');
+      [u.email, day(u.at), day(u.last), planName(u.plan), u.leads].forEach(v => { const td = document.createElement('td'); td.textContent = v; tr.append(td); });
+      tb.append(tr);
+    });
+  } catch { rows.textContent = 'Couldn’t load the numbers. Try Refresh.'; }
+}
+document.getElementById('statsRefresh').addEventListener('click', loadStats);
 document.getElementById('saveGroups').addEventListener('click', async () => {
   const st = document.getElementById('profileStatus');
   const raw = document.getElementById('fbGroups').value;
@@ -1611,7 +1646,7 @@ function leadsError(code){
     case 'free_source_busy': return 'The free lead source is busy right now. Try again in a minute.';
     case 'no_credits': return acct.trial_expired && !acct.paid ? 'Your 15-day free trial has ended. Pick a plan or top up in Leads & plans to keep going.' : 'You’ve used all your leads. Top up or upgrade in Leads & plans.';
     case 'missing_apify': return 'Lead search isn’t switched on yet: the site owner needs to add the Apify token in Vercel.';
-    case 'apify_credits': return 'The lead finder is out of credits. Try again later.';
+    case 'apify_credits': return acct.owner ? 'Apify’s monthly credit is used up, so Google Maps searches are paused. Upgrade or raise the limit at console.apify.com/billing.' : 'The lead finder is paused for a little while on our side. Try again later today.';
     case 'rate_limited': return 'Too many lead searches. Wait a few minutes and try again.';
     case 'no_location': return 'Type a city or country first.';
     case 'auth_required': return 'Sign in to find real leads.';
@@ -1841,6 +1876,7 @@ function hotError(code){
   switch (code) {
     case 'hot_trial_over': return 'Your free week of hot leads is over. See Leads & plans to keep them coming.';
     case 'missing_apify': return 'Hot leads aren’t switched on yet: the site owner needs to add the Apify token.';
+    case 'apify_credits': return acct.owner ? 'Apify’s monthly credit is used up, so searches are paused. Upgrade or raise the limit at console.apify.com/billing.' : 'Hot leads are paused for a little while on our side. Try again later today.';
     case 'rate_limited': return 'Too many hot lead searches. Wait a few minutes and try again.';
     case 'auth_required': return 'Sign in to find hot leads.';
     default: return 'Couldn’t check for hot leads right now. Try again in a minute.';

@@ -85,7 +85,10 @@ export async function startHotRuns(q, time = "month", deep = false, groups = [])
     fb,
   ]);
   const ids = r => r.status === "fulfilled" ? [r.value.runId, r.value.datasetId] : ["-", "-"];
-  return [...ids(runs[0]), ...ids(runs[1]), ...(deep ? [...ids(runs[2]), ...ids(runs[3])] : [])];
+  const parts = [...ids(runs[0]), ...ids(runs[1]), ...(deep ? [...ids(runs[2]), ...ids(runs[3])] : [])];
+  // Apify answers 402 when the account's monthly credit is used up.
+  parts.outOfCredit = runs.some(r => r.status === "rejected" && r.reason && r.reason.status === 402);
+  return parts;
 }
 
 export async function collectRuns([rRun, rData, xRun, xData, gRun = "-", gData = "-", fRun = "-", fData = "-"]) {

@@ -43,7 +43,7 @@ export default async function handler(req, res) {
     catch (e) { return send(res, 502, { error: e.code || "upstream_error" }); }
 
     const parts = await startHotRuns(q, "month", deep, deep ? ((user.app_metadata || {}).fb_groups || []) : []);
-    if (parts.every((p, i) => i % 2 || p === "-")) return send(res, 502, { error: "apify_error" });
+    if (parts.every((p, i) => i % 2 || p === "-")) return send(res, 502, { error: parts.outOfCredit ? "apify_credits" : "apify_error" });
     return send(res, 200, { ticket: makeTicket([...parts, user.id]), queries: q, deep });
   }
 
